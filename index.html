@@ -1,0 +1,1883 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>钩针步骤助手</title>
+<style>
+  :root {
+    --bg: #faf6f0;
+    --panel: #ffffff;
+    --ink: #2b2622;
+    --muted: #7a6f66;
+    --line: #e8dfd4;
+    --accent: #d9644a;
+    --accent-soft: #fbe7e1;
+    --ok: #3f8f7a;
+    --ok-soft: #e1f1ec;
+    --warn: #b7791f;
+    --warn-soft: #fbf0dc;
+    --dec: #3a66b5;
+    --dec-soft: #e3ecfa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1a18; --panel: #282421; --ink: #f1ebe4; --muted: #a99e93; --line: #3a3430;
+      --accent: #ef8a70; --accent-soft: #4a2c24; --ok: #6cc3a9; --ok-soft: #1f3a33;
+      --warn: #e2b05a; --warn-soft: #43361f; --dec: #8fb0ee; --dec-soft: #1f2b43;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1d1a18; --panel: #282421; --ink: #f1ebe4; --muted: #a99e93; --line: #3a3430;
+    --accent: #ef8a70; --accent-soft: #4a2c24; --ok: #6cc3a9; --ok-soft: #1f3a33;
+    --warn: #e2b05a; --warn-soft: #43361f; --dec: #8fb0ee; --dec-soft: #1f2b43;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 19px; }
+  header span { color: var(--muted); font-size: 13px; }
+  main {
+    display: grid; grid-template-columns: 300px 1fr 380px; gap: 0;
+    height: calc(100vh - 54px);
+  }
+  aside, section.steps { overflow-y: auto; padding: 16px; }
+  aside { border-right: 1px solid var(--line); }
+  section.steps { border-left: 1px solid var(--line); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .card h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  #drop {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 10px; text-align: center;
+    cursor: pointer; color: var(--muted); font-size: 13px; transition: border-color .15s;
+  }
+  #drop.over { border-color: var(--accent); }
+  #preview { width: 100%; max-width: 240px; aspect-ratio: 1; display: block; margin: 8px auto; border-radius: 8px; background: #fff; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .row label { flex: 1; font-size: 13px; color: var(--muted); }
+  .row input, .row select {
+    width: 120px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--ink); font: inherit; font-size: 14px;
+  }
+  .row input[type="color"] { width: 56px; height: 30px; padding: 2px; cursor: pointer; }
+  .palettes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+  .palettes button { padding: 6px 4px; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .palettes button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .dots { display: flex; gap: 2px; }
+  .dots i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
+  body:not(.animal) .animal-only { display: none; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+  .seg button { flex: 1; border: none; border-radius: 0; padding: 8px 4px; background: var(--bg); font-size: 14px; }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+  button {
+    font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.05); }
+  .detect { font-size: 13px; padding: 8px 10px; border-radius: 8px; margin-top: 8px; }
+  .ai { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 10px; }
+  .ai-title { font-weight: 700; font-size: 14px; }
+  /* 在 Claude 的 Artifact 里用平台提供的 Claude（不需要 Key）；本地打开时用 API Key */
+  body.in-viewer .key-only, body:not(.in-viewer) .viewer-only { display: none; }
+  .ai .row input { width: 150px; }
+  #aiResult .detect p { margin: 4px 0; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .detect.ok { background: var(--ok-soft); color: var(--ok); }
+  .detect.warn { background: var(--warn-soft); color: var(--warn); }
+  .muted { color: var(--muted); font-size: 13px; }
+  #stage { position: relative; min-width: 0; }
+  #three { position: absolute; inset: 0; }
+  #legend {
+    position: absolute; left: 12px; bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap;
+    background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 6px 10px; border-radius: 8px;
+    font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+  }
+  #legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  #stageTools { position: absolute; right: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .seg.mini { margin: 0; background: var(--panel); }
+  .seg.mini button { padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+  #cuPanel {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    width: min(560px, calc(100% - 24px)); background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px;
+  }
+  .cu-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .cu-cap { font-size: 16px; font-weight: 600; min-height: 2.6em; }
+  .cu-dots { display: flex; gap: 4px; }
+  .cu-dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .cu-dots i.on { background: var(--accent); }
+  .cu-ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cu-ctrl button { flex: 1; padding: 6px 8px; font-size: 13px; }
+  .cu-ctrl select { padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; }
+  body.closeup #legend { display: none; }
+  .step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .step-head h3 { margin: 0; font-size: 20px; }
+  .part-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--ok-soft); color: var(--ok); font-weight: 600; margin-bottom: 4px; }
+  .progress { height: 6px; background: var(--line); border-radius: 3px; margin: 10px 0 12px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); transition: width .3s; }
+  .instr {
+    font-size: 17px; font-weight: 600; background: var(--accent-soft); padding: 10px 12px;
+    border-radius: 8px; margin: 8px 0;
+  }
+  .count { font-size: 14px; margin: 8px 0; }
+  .count b { color: var(--accent); font-size: 18px; }
+  ol.how { padding-left: 20px; margin: 8px 0; }
+  ol.how li { margin: 3px 0; }
+  .tip { font-size: 13px; background: var(--ok-soft); color: var(--ok); padding: 8px 10px; border-radius: 8px; margin-top: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .chip {
+    font-size: 12px; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); cursor: pointer; user-select: none;
+  }
+  .chip.inc { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chip.dec { background: var(--dec-soft); border-color: var(--dec); color: var(--dec); font-weight: 600; }
+  .chip.focus { outline: 2px solid var(--ink); }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; border: 1px solid var(--line); }
+  .nav { display: flex; gap: 8px; margin-top: 14px; }
+  .nav .primary { flex: 1; padding: 10px; font-size: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { white-space: nowrap; color: var(--muted); }
+  td:last-child { text-align: right; white-space: nowrap; }
+  tr { cursor: pointer; }
+  tr.cur td { background: var(--accent-soft); }
+  tr.done td { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+  tr.special td { color: var(--ok); font-weight: 600; }
+  tr.parthead td { font-weight: 700; color: var(--ink); background: var(--bg); text-decoration: none; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details p { font-size: 13px; margin: 6px 0; }
+  kbd { font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  @media (max-width: 1000px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    #stage { height: 60vh; }
+    aside, section.steps { border: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>钩针步骤助手 · 原型</h1>
+  <span>上传形状图片 → 生成钩针图解 → 跟着 3D 演示一圈一圈钩</span>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <h2>1. 上传图片</h2>
+      <div id="drop">点击选择 / 拖入 / 粘贴图片<br>（目前识别：纯色圆形；主色会用作线色）</div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <canvas id="preview" width="240" height="240"></canvas>
+      <div class="row"><button id="demo" style="flex:1">用示例圆形</button></div>
+      <div id="detect"></div>
+      <div class="ai">
+        <div class="ai-title">✨ AI 识图</div>
+        <p class="muted" style="margin:2px 0 6px">让 Claude 看照片：判断最接近哪个模板，取主色、浅色、鼻子色，估计尺寸。</p>
+        <div class="row key-only"><label for="aiKey">Anthropic API Key</label><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>
+        <button id="aiBtn" class="primary" style="width:100%">用 AI 识别这张图</button>
+        <p class="muted key-only" style="margin:6px 0 0">Key 只保存在这台电脑的浏览器里，由浏览器直接发给 Anthropic；别把填了 Key 的电脑借给别人用。</p>
+        <p class="muted viewer-only" style="margin:6px 0 0">用的是你自己的 Claude 账号额度，第一次会先问你是否允许。</p>
+        <div id="aiResult"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>2. 钩成什么</h2>
+      <div id="mode">
+        <div class="seg">
+          <button data-mode="flat">平面圆片</button>
+          <button data-mode="sphere">立体小球</button>
+        </div>
+        <div class="seg">
+          <button data-mode="bear">小熊</button>
+          <button data-mode="bunny">小兔</button>
+          <button data-mode="cat">小猫</button>
+        </div>
+      </div>
+      <div class="row"><label for="diam" id="diamLabel">成品直径 (cm)</label><input id="diam" type="number" min="3" max="40" step="0.5" value="10"></div>
+      <div class="row"><label for="preset">线材</label>
+        <select id="preset">
+          <option value="fine">细线 · 2.5mm 针</option>
+          <option value="dk" selected>中粗线 · 3.5mm 针</option>
+          <option value="worsted">粗线 · 5.0mm 针</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div class="row"><label for="gst">10cm 内短针针数</label><input id="gst" type="number" min="5" max="50" value="20"></div>
+      <div class="row"><label for="grow">10cm 内短针行数</label><input id="grow" type="number" min="5" max="50" value="22"></div>
+      <p class="muted">密度最准的办法：先钩一块 12×12cm 的短针样片，数中间 10cm 有几针、几行，填进来。</p>
+      <div id="summary" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>3. 配色</h2>
+      <div class="palettes" id="palettes"></div>
+      <div class="row"><label for="cMain">主色</label><input type="color" id="cMain"></div>
+      <div class="row animal-only"><label for="cLight">浅色（嘴套、兔尾巴）</label><input type="color" id="cLight"></div>
+      <div class="row animal-only"><label for="cNose">鼻子</label><input type="color" id="cNose"></div>
+      <p class="muted">上传图片会自动取图片的主色。改配色不会影响进度。</p>
+    </div>
+    <div class="card">
+      <details>
+        <summary>针法速查</summary>
+        <p><b>环形起针（magic ring）</b>：线在手指上绕 2 圈成环，钩针从环中挂线拉出，再钩 1 针锁针固定（这针不计数）。之后的短针都钩进这个环里，最后拉线尾把环收紧。</p>
+        <p><b>短针（sc / X）</b>：钩针插入针眼 → 挂线拉出（针上 2 个线圈）→ 再挂线，一次穿过 2 个线圈。</p>
+        <p><b>加针（inc / V）</b>：在同一个针眼里钩 2 针短针，针数 +1。</p>
+        <p><b>减针（dec / A）</b>：把相邻 2 针并成 1 针，针数 −1。钩针插入第 1 针挂线拉出，再插入第 2 针挂线拉出（针上 3 个线圈），挂线一次穿过 3 个线圈。</p>
+        <p><b>隐形减针</b>：做玩偶推荐。钩针依次只挑相邻 2 针的<b>前半针</b>，然后像普通短针一样完成。外面几乎看不出减针痕迹。</p>
+        <p><b>引拔针（sl st）</b>：插入针眼 → 挂线，一次穿过针上所有线圈。几乎没有高度，用于收尾。</p>
+        <p><b>记号扣</b>：螺旋钩不引拔连接，看不出每圈从哪儿开始，所以在每圈第 1 针挂记号扣做标记。</p>
+        <p><b>缝合（卷针缝）</b>：用部件留下的长线尾穿缝针，沿部件开口边缘，每次挑部件 1 针、再挑身体 1 针，绕一圈缝牢。</p>
+      </details>
+    </div>
+  </aside>
+
+  <div id="stage">
+    <div id="three"></div>
+    <div id="stageTools">
+      <div class="seg mini" id="viewSeg">
+        <button data-view="overview" class="on">整体</button>
+        <button data-view="closeup">针法特写</button>
+      </div>
+      <button id="replay" title="重新播放动画">▶ 重播</button>
+      <button id="resetView" title="恢复视角">⟲ 视角</button>
+    </div>
+    <div id="cuPanel" hidden>
+      <div class="cu-head"><b id="cuTitle"></b><span class="muted" id="cuSub"></span></div>
+      <div class="cu-cap" id="cuCap"></div>
+      <div class="cu-dots" id="cuDots"></div>
+      <div class="cu-ctrl">
+        <button id="cuPrev">⏮ 上一步</button>
+        <button id="cuPlay">⏸ 暂停</button>
+        <button id="cuNext">下一步 ⏭</button>
+        <select id="cuSpeed" aria-label="播放速度">
+          <option value="0.5">慢速</option>
+          <option value="1" selected>正常</option>
+          <option value="1.6">快速</option>
+        </select>
+      </div>
+    </div>
+    <div id="legend">
+      <span><i id="lgDone"></i>已完成</span>
+      <span><i style="background:#f2c14e"></i>本圈短针</span>
+      <span><i style="background:#d9644a"></i>加针</span>
+      <span><i style="background:#4f7fd1"></i>减针</span>
+      <span><i style="background:#e33;"></i>记号扣</span>
+      <span><i style="background:#ccc"></i>还没钩</span>
+    </div>
+  </div>
+
+  <section class="steps">
+    <div class="card" id="stepCard"></div>
+    <div class="card">
+      <h2>完整图解（点击跳转）</h2>
+      <table id="table"></table>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ---------- 参数 ----------
+const PRESETS = {
+  fine:    { yarn: '细线（如 4 股棉线）', hook: '2.5 mm', st: 26, row: 28 },
+  dk:      { yarn: '中粗线（如 5 股牛奶棉）', hook: '3.5 mm', st: 20, row: 22 },
+  worsted: { yarn: '粗线（Worsted 级）', hook: '5.0 mm', st: 15, row: 17 },
+};
+const MODES = {
+  flat:   { name: '平面圆片', sizeLabel: '成品直径 (cm)', size: 10 },
+  sphere: { name: '立体小球', sizeLabel: '成品直径 (cm)', size: 6 },
+  bear:   { name: '小熊', sizeLabel: '坐姿高度 (cm)', size: 12 },
+  bunny:  { name: '小兔', sizeLabel: '坐姿高度，不含耳朵 (cm)', size: 12 },
+  cat:    { name: '小猫', sizeLabel: '坐姿高度，不含耳朵 (cm)', size: 12 },
+};
+// 动物玩偶共用头、嘴套、身体、手、腿，区别在耳朵、尾巴和脸部细节
+const ANIMALS = {
+  bear:  { ears: 'round',  tail: null },
+  bunny: { ears: 'long',   tail: 'pompom' },
+  cat:   { ears: 'pointy', tail: 'long', whiskers: true },
+};
+// 预设配色：主色 / 浅色（嘴套、兔尾巴）/ 鼻子
+const PALETTES = [
+  { name: '焦糖', main: '#c99a6e', light: '#f4ead8', nose: '#3a2418' },
+  { name: '奶白', main: '#f1eadf', light: '#e2c3a3', nose: '#e58fa0' },
+  { name: '樱花粉', main: '#f2b8c6', light: '#fff5f0', nose: '#c2546d' },
+  { name: '雾灰', main: '#a9acb3', light: '#f1f1ef', nose: '#2b2b2b' },
+  { name: '薄荷', main: '#9fd8c4', light: '#fdf8ec', nose: '#e58fa0' },
+  { name: '黑猫', main: '#3b3638', light: '#f4ead8', nose: '#e58fa0' },
+];
+const COLOR_NAMES = { main: '主色线', light: '浅色线', nose: '鼻子色线' };
+const STORE_KEY = 'crochet-proto-v3';
+
+const state = {
+  mode: 'flat',
+  colors: { main: PALETTES[0].main, light: PALETTES[0].light, nose: PALETTES[0].nose },
+  pattern: null,
+  steps: [],
+  step: 0,
+  focus: -1,            // 当前圈被点选的 token 序号
+  view: 'overview',     // 3D 区域：overview 整体进度 / closeup 针法特写
+};
+
+const $ = id => document.getElementById(id);
+
+function loadStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveStore() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      mode: state.mode, colors: state.colors, diam: $('diam').value, preset: $('preset').value, gst: $('gst').value, grow: $('grow').value,
+      step: state.step, sig: patternSig(),
+    }));
+  } catch (e) {}
+}
+function patternSig() {
+  return [state.mode, $('diam').value, $('gst').value, $('grow').value].join('|');
+}
+
+// ---------- 图片识别 ----------
+function analyzeImage(img) {
+  const S = 160;
+  const sc = Math.min(1, S / Math.max(img.width, img.height));
+  const W = Math.max(8, Math.round(img.width * sc)), H = Math.max(8, Math.round(img.height * sc));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);   // 透明背景当白色处理
+  cx.drawImage(img, 0, 0, W, H);
+  const d = cx.getImageData(0, 0, W, H).data;
+
+  // 以边框像素的平均色作为背景色
+  let br = 0, bg = 0, bb = 0, bn = 0;
+  for (let x = 0; x < W; x++) for (const y of [0, H - 1]) { const i = (y * W + x) * 4; br += d[i]; bg += d[i + 1]; bb += d[i + 2]; bn++; }
+  for (let y = 0; y < H; y++) for (const x of [0, W - 1]) { const i = (y * W + x) * 4; br += d[i]; bg += d[i + 1]; bb += d[i + 2]; bn++; }
+  br /= bn; bg /= bn; bb /= bn;
+
+  // 每个像素与背景色的距离，用 Otsu 自动选阈值
+  const dist = new Float32Array(W * H), hist = new Array(256).fill(0);
+  for (let p = 0; p < W * H; p++) {
+    const i = p * 4;
+    const v = Math.hypot(d[i] - br, d[i + 1] - bg, d[i + 2] - bb);
+    dist[p] = v; hist[Math.min(255, Math.round(v / 442 * 255))]++;
+  }
+  let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, best = 0, thr = 0;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (!wB) continue;
+    const wF = W * H - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF, between = wB * wF * (mB - mF) ** 2;
+    if (between > best) { best = between; thr = t; }
+  }
+  const cut = Math.max(30, thr / 255 * 442);
+  const mask = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) mask[p] = dist[p] > cut ? 1 : 0;
+
+  // 最大连通区域
+  const lab = new Int32Array(W * H); let bestLab = 0, bestSize = 0, cur = 0;
+  for (let p = 0; p < W * H; p++) {
+    if (!mask[p] || lab[p]) continue;
+    cur++; let size = 0; const q = [p]; lab[p] = cur;
+    while (q.length) {
+      const k = q.pop(); size++;
+      const x = k % W, y = (k / W) | 0;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const n = ny * W + nx;
+        if (mask[n] && !lab[n]) { lab[n] = cur; q.push(n); }
+      }
+    }
+    if (size > bestSize) { bestSize = size; bestLab = cur; }
+  }
+  if (bestSize < W * H * 0.01) return { type: 'none', W, H, img };
+
+  let minX = W, minY = H, maxX = 0, maxY = 0, sx = 0, sy = 0, cr = 0, cg = 0, cb = 0;
+  for (let p = 0; p < W * H; p++) {
+    if (lab[p] !== bestLab) continue;
+    const x = p % W, y = (p / W) | 0, i = p * 4;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    sx += x; sy += y; cr += d[i]; cg += d[i + 1]; cb += d[i + 2];
+  }
+  const A = bestSize, cxm = sx / A, cym = sy / A;
+  const bw = maxX - minX + 1, bh = maxY - minY + 1, aspect = bw / bh;
+  const rEq = Math.sqrt(A / Math.PI);
+  // 与等面积圆、外接椭圆的重合度 (IoU)
+  const ex = (minX + maxX) / 2, ey = (minY + maxY) / 2, ea = bw / 2, eb = bh / 2;
+  let interC = 0, areaC = 0, interE = 0, areaE = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const inS = lab[y * W + x] === bestLab;
+    const inC = (x - cxm) ** 2 + (y - cym) ** 2 <= rEq * rEq;
+    const inE = ((x - ex) / ea) ** 2 + ((y - ey) / eb) ** 2 <= 1;
+    if (inC) { areaC++; if (inS) interC++; }
+    if (inE) { areaE++; if (inS) interE++; }
+  }
+  const iouC = interC / (A + areaC - interC), iouE = interE / (A + areaE - interE);
+  const fill = A / (bw * bh);
+
+  let type = 'unknown';
+  if (iouC > 0.88 && aspect > 0.85 && aspect < 1.18) type = 'circle';
+  else if (fill > 0.9) type = Math.abs(aspect - 1) < 0.12 ? 'square' : 'rect';
+  else if (iouE > 0.88) type = 'ellipse';
+
+  const hex = '#' + [cr, cg, cb].map(v => Math.round(v / A).toString(16).padStart(2, '0')).join('');
+  return { type, iouC, aspect, fill, color: hex, W, H, cxm, cym, rEq, img };
+}
+
+function drawPreview(res) {
+  const cv = $('preview'), cx = cv.getContext('2d');
+  cx.clearRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+  const s = Math.min(cv.width / res.W, cv.height / res.H);
+  const ox = (cv.width - res.W * s) / 2, oy = (cv.height - res.H * s) / 2;
+  cx.drawImage(res.img, ox, oy, res.W * s, res.H * s);
+  if (res.type === 'circle') {
+    cx.setLineDash([6, 4]); cx.lineWidth = 2; cx.strokeStyle = '#3f8f7a';
+    cx.beginPath(); cx.arc(ox + res.cxm * s, oy + res.cym * s, res.rEq * s, 0, Math.PI * 2); cx.stroke();
+  }
+}
+
+const SHAPE_NAMES = { circle: '圆形', square: '正方形', rect: '长方形', ellipse: '椭圆形', unknown: '无法识别的形状', none: '没找到明显的图形' };
+
+function handleImage(img, keepColor) {
+  state.lastImage = img;
+  $('aiResult').innerHTML = '';
+  const res = analyzeImage(img);
+  // 启动时的示例图不覆盖用户之前选好的配色
+  if (res.color && !keepColor) setColors({ main: res.color }, true);
+  drawPreview(res);
+  const box = $('detect');
+  const swatch = res.color ? `主色 <span class="swatch" style="background:${res.color}"></span> ${res.color}，已用作 3D 线色` : '';
+  if (res.type === 'circle') {
+    box.className = 'detect ok';
+    box.innerHTML = `识别为 <b>圆形</b>（圆度 ${(res.iouC * 100).toFixed(0)}%）<br>${swatch}<br>圆形可以钩成平面圆片、立体小球，或用作玩偶的配色，在下面选择。`;
+    generate(true);
+  } else {
+    box.className = 'detect warn';
+    box.innerHTML = `识别为 <b>${SHAPE_NAMES[res.type]}</b>。原型目前只会按圆形生成。${swatch ? '<br>' + swatch : ''}<br><button id="forceCircle" style="margin-top:6px">仍按圆形生成</button>`;
+    $('forceCircle').onclick = () => generate(true);
+  }
+}
+
+function loadFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { handleImage(img); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+function demoImage(keepColor) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 300;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fdfbf7'; cx.fillRect(0, 0, 300, 300);
+  cx.fillStyle = state.colors.main; cx.beginPath(); cx.arc(150, 150, 110, 0, Math.PI * 2); cx.fill();
+  const img = new Image(); img.onload = () => handleImage(img, keepColor); img.src = cv.toDataURL();
+}
+
+// ---------- AI 识图（浏览器直接调用 Claude API） ----------
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.135.0/+esm';
+const AI_KEY_STORE = 'crochet-ai-key';
+const TEMPLATE_IDS = ['flat', 'sphere', 'bear', 'bunny', 'cat'];
+const AI_SCHEMA = {
+  type: 'object',
+  properties: {
+    subject: { type: 'string', description: '照片里是什么，一句简体中文' },
+    template: { type: 'string', enum: TEMPLATE_IDS },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    reason: { type: 'string', description: '为什么选这个模板，一两句简体中文' },
+    main: { type: 'string', description: '主体的毛线颜色，#rrggbb' },
+    light: { type: 'string', description: '浅色部分（嘴套、肚子、尾巴）的颜色，#rrggbb' },
+    nose: { type: 'string', description: '鼻子的颜色，#rrggbb' },
+    size_cm: { type: 'number', description: '估计成品尺寸（厘米），看不出来填 0' },
+    differences: { type: 'string', description: '照片和所选模板相比有哪些模板做不出来的地方，简体中文；没有就填空字符串' },
+  },
+  required: ['subject', 'template', 'confidence', 'reason', 'main', 'light', 'nose', 'size_cm', 'differences'],
+  additionalProperties: false,
+};
+const AI_SYSTEM = `你在帮一个钩针教学应用看照片。应用只能生成下面 5 种模板的钩针教程，你要选出和照片最接近的一种：
+- flat：平面圆片（杯垫、圆形贴片等扁平的圆形物）
+- sphere：立体小球（球、圆形挂件、没有五官的圆球）
+- bear：小熊玩偶（圆耳朵）
+- bunny：小兔玩偶（长耳朵、绒球尾巴）
+- cat：小猫玩偶（尖三角耳朵、长尾巴、胡须）
+照片可能是钩织成品、毛绒玩具、卡通图或真实物体，按外形选最接近的模板；动物不在这 3 种里时，选耳朵形状最像的那个。
+颜色要选适合买毛线的颜色：main 是身体主色；light 是嘴套、肚子或尾巴这类浅色部分（照片里没有就给一个和主色搭配的奶白或浅色）；nose 是鼻子颜色（看不到就给一个和主色搭配的深色或粉色）。
+size_cm：平面圆片和小球指直径，玩偶指坐着的高度（不含耳朵）。只有照片里有能参照的东西（手、桌面物品、尺子）时才估计，否则填 0。
+所有文字字段用简体中文，简短。`;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// 把图片缩到长边 1024px，转成 JPEG base64（API 不需要更大的图）
+function imageToBase64(img) {
+  const S = 1024, sc = Math.min(1, S / Math.max(img.width, img.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.drawImage(img, 0, 0, cv.width, cv.height);
+  return cv.toDataURL('image/jpeg', 0.88).split(',')[1];
+}
+
+async function aiAnalyze() {
+  const box = $('aiResult'), btn = $('aiBtn');
+  const apiKey = $('aiKey').value.trim();
+  const show = (cls, html) => { box.innerHTML = `<div class="detect ${cls}">${html}</div>`; };
+  if (!apiKey) return show('warn', '先填 Anthropic API Key（在 platform.claude.com 的 API Keys 页面创建）。');
+  if (!state.lastImage) return show('warn', '先上传一张图片。');
+  try { localStorage.setItem(AI_KEY_STORE, apiKey); } catch (e) {}
+
+  btn.disabled = true; btn.textContent = 'AI 正在看图…';
+  show('ok', '正在把图片发给 Claude 分析，一般需要 10–30 秒。');
+  let Anthropic;
+  try {
+    ({ default: Anthropic } = await import(SDK_URL));
+  } catch (e) {
+    btn.disabled = false; btn.textContent = '用 AI 识别这张图';
+    return show('warn', 'AI 组件加载失败，请检查网络后重试。');
+  }
+  try {
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    const response = await client.beta.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 16000,
+      // 万一被安全分类器拒答，服务端自动换模型重试
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: AI_SCHEMA } },
+      system: AI_SYSTEM,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageToBase64(state.lastImage) } },
+          { type: 'text', text: '请分析这张照片，选出最接近的钩针模板和配色。' },
+        ],
+      }],
+    });
+    if (response.stop_reason === 'refusal') return show('warn', 'Claude 没有分析这张图。换一张照片试试。');
+    if (response.stop_reason === 'max_tokens') return show('warn', 'AI 的回答被截断了，请再试一次。');
+    const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    applyAiResult(JSON.parse(text));
+  } catch (e) {
+    if (e instanceof Anthropic.AuthenticationError) show('warn', 'API Key 不对或已失效，请检查后重新填写。');
+    else if (e instanceof Anthropic.PermissionDeniedError) show('warn', '这个 API Key 没有调用该模型的权限。');
+    else if (e instanceof Anthropic.RateLimitError) show('warn', '请求太频繁或额度不足，稍等一会儿再试。');
+    else if (e instanceof Anthropic.InternalServerError) show('warn', 'Anthropic 服务暂时繁忙，稍后再试。');
+    else if (e instanceof Anthropic.APIConnectionError) show('warn', '连不上 Anthropic，请检查网络。');
+    else if (e instanceof Anthropic.APIError) show('warn', `请求出错：${e.message}`);
+    else if (e instanceof SyntaxError) show('warn', 'AI 返回的内容解析失败，请再试一次。');
+    else throw e;
+  } finally {
+    btn.disabled = false; btn.textContent = '用 AI 识别这张图';
+  }
+}
+
+function applyAiResult(r) {
+  if (!TEMPLATE_IDS.includes(r.template)) throw new SyntaxError('unknown template');
+  setMode(r.template);
+  if (r.size_cm > 0) $('diam').value = Math.min(40, Math.max(3, Math.round(r.size_cm * 2) / 2));
+  const colors = {};
+  for (const k of ['main', 'light', 'nose']) if (HEX.test(r[k] || '')) colors[k] = r[k].toLowerCase();
+  setColors(colors, true);
+  generate(true);
+  const conf = { high: '很有把握', medium: '比较有把握', low: '不太确定' }[r.confidence] || '';
+  const dots = ['main', 'light', 'nose'].filter(k => colors[k]).map(k => `${swatch(k)} ${COLOR_NAMES[k]}`).join('　');
+  $('aiResult').innerHTML = `<div class="detect ok">
+    <p><b>AI：</b>${escapeHtml(r.subject)}</p>
+    <p>→ 选用模板 <b>${MODES[r.template].name}</b>（${conf}）。${escapeHtml(r.reason)}</p>
+    <p>${dots}${r.size_cm > 0 ? `　尺寸约 ${$('diam').value} cm` : ''}</p>
+    ${r.differences ? `<p>模板做不出来的地方：${escapeHtml(r.differences)}</p>` : ''}
+    <p class="muted">已经按这个结果生成教程。不满意可以在下面手动换模板、改颜色。</p></div>`;
+}
+
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---- 在 Claude Artifact 里：通过平台的 sample 能力请 Claude 看图，花的是打开者自己的 Claude 额度 ----
+let aiSample = null;
+const IN_VIEWER = !!window.claude?.use;
+document.body.classList.toggle('in-viewer', IN_VIEWER);
+if (IN_VIEWER) {
+  const section = document.querySelector('.ai');
+  section.hidden = true;                       // 确认能用再显示
+  window.claude.use('sample').then(async s => {
+    const caps = s && await s.limits().catch(() => null);
+    if (s && caps?.images) { aiSample = s; section.hidden = false; }
+  });
+}
+
+const AI_JSON_FORMAT = `
+只回复一个 JSON 对象，不要任何其他文字，格式：
+{"subject": "照片里是什么，一句话", "template": "flat、sphere、bear、bunny、cat 之一", "confidence": "high、medium、low 之一", "reason": "为什么选这个模板", "main": "#rrggbb", "light": "#rrggbb", "nose": "#rrggbb", "size_cm": 数字（看不出来填 0）, "differences": "照片里有、模板做不出来的地方；没有就填空字符串"}`;
+
+// 平台会自己再压缩图片，这里只把超大图先缩小，并统一成 JPEG
+function imageToBlob(img) {
+  const S = 1600, sc = Math.min(1, S / Math.max(img.width, img.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.drawImage(img, 0, 0, cv.width, cv.height);
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', 0.88));
+}
+
+const SAMPLE_ERRORS = {
+  not_granted: '你没有允许这个页面使用 Claude，所以 AI 识图用不了。可以在页面的权限菜单里重新允许。',
+  sampling_disabled: '你的账号现在不能在页面里使用 Claude。',
+  rate_limited: '请求太频繁或额度用完了，过一会儿再试。',
+  session_expired: '登录已过期，请重新登录 Claude 后再试。',
+  image_rejected: '这张图片读不了，换一张 JPG 或 PNG 试试。',
+  refused: 'Claude 没有分析这张图，换一张照片试试。',
+  invalid_json: 'AI 的回答格式不对，再点一次试试。',
+  empty_completion: 'AI 没有给出回答，再点一次试试。',
+};
+
+async function aiAnalyzeViaSample() {
+  const box = $('aiResult'), btn = $('aiBtn');
+  const show = (cls, html) => { box.innerHTML = `<div class="detect ${cls}">${html}</div>`; };
+  if (!state.lastImage) return show('warn', '先上传一张图片。');
+  btn.disabled = true; btn.textContent = 'AI 正在看图…';
+  show('ok', '正在请 Claude 看图，一般需要 10–60 秒。');
+  try {
+    const blob = await imageToBlob(state.lastImage);
+    const r = await aiSample.json(AI_SYSTEM + '\n' + AI_JSON_FORMAT, { images: blob });
+    r.size_cm = Number(r.size_cm) || 0;
+    applyAiResult(r);
+  } catch (e) {
+    if (e?.code === 'cancelled') box.innerHTML = '';
+    else if (e instanceof SyntaxError) show('warn', SAMPLE_ERRORS.invalid_json);
+    else show('warn', SAMPLE_ERRORS[e?.code] || 'Claude 暂时没有回应，稍后再点一次试试。');
+  } finally {
+    btn.disabled = false; btn.textContent = '用 AI 识别这张图';
+  }
+}
+
+$('aiBtn').onclick = () => (aiSample ? aiAnalyzeViaSample() : aiAnalyze());
+try { $('aiKey').value = localStorage.getItem(AI_KEY_STORE) || ''; } catch (e) {}
+
+// ---------- 几何小工具（不依赖 three.js，方便单独测试） ----------
+const norm = v => { const l = Math.hypot(...v); return v.map(x => x / l); };
+const add = (a, b, s = 1) => a.map((x, i) => x + b[i] * s);
+const neg = v => v.map(x => -x);
+// 圆弧轮廓点：圆心 (cx, cy)，从底部极点量起的角度 a0→a1
+function arcPts(cx, cy, R, a0, a1, n = 24) {
+  const out = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; out.push([cx + R * Math.sin(a), cy - R * Math.cos(a)]); }
+  return out;
+}
+// 轮廓折线：pts 是 [半径 r, 高度 y]，从底部中心开始往上
+function polyline(pts, flipNormal) {
+  const P = [pts[0]];
+  for (const p of pts.slice(1)) { const q = P[P.length - 1]; if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-6) P.push(p); }
+  const cum = [0];
+  for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const L = cum[cum.length - 1], sg = flipNormal ? -1 : 1;
+  function at(s) {
+    s = Math.max(0, Math.min(L, s));
+    let i = 1; while (i < P.length - 1 && cum[i] < s) i++;
+    const seg = cum[i] - cum[i - 1], f = (s - cum[i - 1]) / seg;
+    const dr = (P[i][0] - P[i - 1][0]) / seg, dy = (P[i][1] - P[i - 1][1]) / seg;
+    return { r: P[i - 1][0] + dr * seg * f, y: P[i - 1][1] + dy * seg * f, nr: dy * sg, ny: -dr * sg, tr: dr, ty: dy };
+  }
+  return { L, at };
+}
+
+// ---------- 图解生成 ----------
+// 思路：每个部件是一条“从底到顶”的轮廓曲线绕轴转一圈的立体。
+// 沿曲线按行高切成一圈圈，每圈针数 = 这一圈外沿的周长 ÷ 针宽（取 6 的倍数），
+// 再把相邻两圈的针数差变成均匀分布的加针/减针。平面圆片按经典规则每圈 +6。
+const NAME = { sc: '短针', inc: '加针', dec: '减针' };
+const IN = { sc: 1, inc: 1, dec: 2 };    // 消耗上一圈几针
+const OUT = { sc: 1, inc: 2, dec: 1 };   // 产生本圈几针
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const repeat = (arr, m) => Array.from({ length: m }, () => arr).flat();
+const scs = k => Array(k).fill('sc');
+
+function runText(tokens) {
+  const out = [];
+  for (let i = 0; i < tokens.length;) {
+    let j = i; while (j < tokens.length && tokens[j] === tokens[i]) j++;
+    out.push(`${j - i} ${NAME[tokens[i]]}`); i = j;
+  }
+  return out.join(', ');
+}
+
+// 从上一圈 p 针变到本圈 c 针
+function transition(p, c, stagger) {
+  const d = c - p;
+  if (d === 0) return { tokens: scs(p), text: '每针 1 短针（不加不减）', op: null, q: 0 };
+  const op = d > 0 ? 'inc' : 'dec', q = Math.abs(d);
+  const m = gcd(p, q), u = p / m, k = q / m;
+  const nsc = u - k * IN[op];
+  const unit = [];
+  for (let j = 0; j < k; j++) {
+    const g = Math.floor((j + 1) * nsc / k) - Math.floor(j * nsc / k);
+    unit.push(...scs(g), op);
+  }
+  if (nsc === 0) return { tokens: repeat(unit, m), text: op === 'inc' ? `每针加针 ×${q}` : `减针 ×${q}`, op, q, m, unit, all: true };
+  if (stagger && k === 1 && m > 1) {
+    // 错开半格：避免加/减针点每圈落在同一列上
+    const a = Math.floor(nsc / 2), b = nsc - a;
+    const tokens = [...scs(a), op, ...repeat(unit, m - 1), ...scs(b)];
+    const text = [a ? `${a} 短针` : '', `1 ${NAME[op]}`, `(${runText(unit)}) ×${m - 1}`, b ? `${b} 短针` : ''].filter(Boolean).join(', ');
+    return { tokens, text, op, q, m, unit, staggered: true };
+  }
+  return { tokens: repeat(unit, m), text: m > 1 ? `(${runText(unit)}) ×${m}` : runText(unit), op, q, m, unit };
+}
+
+function buildPart(def, w, h) {
+  const poly = polyline(def.pts, def.flipNormal);
+  // 封口的部件最后一段是“穿线收口”，不用钩
+  const arcs = Math.max(def.closed ? 3 : 2, Math.round(poly.L / h));
+  const N = def.closed ? arcs - 1 : arcs;
+  let s;
+  if (def.flatCounts) s = Array.from({ length: N }, (_, i) => 6 * (i + 1));
+  else {
+    s = [];
+    for (let i = 1; i <= N; i++) s.push(Math.max(6, 6 * Math.round(2 * Math.PI * poly.at(i * poly.L / arcs).r / w / 6)));
+    s[0] = 6;
+    if (!def.noBoost && N > 2 && s[1] === 6 && Math.max(...s) > 6) s[1] = 12;   // 玩偶惯例：第 2 圈直接每针加针
+    if (def.closed) s[N - 1] = 6;
+    // 加针一圈最多翻倍，减针一圈最多减半
+    for (let it = 0; it < 3; it++) {
+      for (let i = 1; i < N; i++) s[i] = Math.min(s[i], 2 * s[i - 1]);
+      for (let i = N - 2; i >= 0; i--) s[i] = Math.min(s[i], 2 * s[i + 1]);
+    }
+  }
+  const rounds = s.map((c, i) => {
+    const n = i + 1;
+    if (n === 1) return { n, count: c, prev: 0, tokens: scs(c), text: `环形起针，环内钩 ${c} 短针`, op: 'inc', q: c };
+    const p = s[i - 1], tr = transition(p, c, n % 2 === 1);
+    const used = tr.tokens.reduce((a, t) => a + IN[t], 0), made = tr.tokens.reduce((a, t) => a + OUT[t], 0);
+    if (used !== p || made !== c) throw new Error(`${def.name} 第 ${n} 圈针数校验失败`);
+    return { n, count: c, prev: p, ...tr };
+  });
+  const part = { ...def, rounds, N, arcs, L: poly.L, at: poly.at, maxCount: Math.max(...s), scale: arcs * h / poly.L };
+  if (def.closed && def.stuff === 'full') {
+    // 开口收到最大周长一半左右时塞棉花：再晚手就伸不进去了
+    const r = rounds.find(r => r.count < r.prev && r.prev <= part.maxCount / 2) || rounds[N - 1];
+    part.stuffBefore = r.n;
+  }
+  return part;
+}
+
+// 在部件上找：从底部极点量起角度 theta 处是第几圈（球形部件用）
+const roundAtTheta = (part, theta) => Math.min(part.N, Math.max(1, Math.round(theta / Math.PI * part.arcs)));
+// 找轮廓高度最接近 y 的那一圈
+function roundAtY(part, y) {
+  let best = 1, bd = Infinity;
+  for (let n = 1; n <= part.N; n++) { const d = Math.abs(part.at((n - 0.5) * part.L / part.arcs).y - y); if (d < bd) { bd = d; best = n; } }
+  return best;
+}
+
+// ---------- 作品模板 ----------
+function makeTemplate(mode, size) {
+  if (mode === 'flat') return {
+    parts: [{ id: 'disc', name: '圆片', copies: 1, closed: false, flatCounts: true, flipNormal: true, stuff: 'none', color: 'main',
+      pts: [[0, 0], [size / 2, 0]], inst: [{ pos: [0, 0, 0], dir: [0, 1, 0] }] }],
+    view: [0, 1.5, 1],
+  };
+  if (mode === 'sphere') {
+    const R = size / 2;
+    return {
+      parts: [{ id: 'ball', name: '小球', copies: 1, closed: true, stuff: 'full', color: 'main', cotton: R,
+        pts: arcPts(0, R, R, 0, Math.PI, 48), inst: [{ pos: [0, -R, 0], dir: [0, 1, 0] }] }],
+      view: [0.3, 0.8, 1],
+    };
+  }
+  return makeAnimal(mode, size);
+}
+
+function makeAnimal(mode, size) {
+  const A = ANIMALS[mode], animal = MODES[mode].name;
+  // 尺寸以 12cm 坐高为基准等比缩放，单位 cm；y 朝上，脸朝 +z
+  const k = size / 12, S = pts => pts.map(([r, y]) => [r * k, y * k]);
+  const RH = 3.75 * k, headBottom = 4.5 * k, C = [0, headBottom + RH, 0];
+  // 贴在头上的部件：极点朝外，开口朝头心
+  const onHead = (n, out) => { n = norm(n); return { pos: add(C, n, RH + out), dir: neg(n) }; };
+  const earN = a => [Math.sin(a), Math.cos(a), 0];
+  const RE = 1.4 * k, RM = 1.6 * k, capM = 1.0;
+  const muzzleN = norm([0, -0.3, 1]);
+  const eyeN = [norm([-0.38, 0.12, 1]), norm([0.38, 0.12, 1])];
+  const armDir = s => norm([-0.35 * s, 1, 0.15]), shoulder = s => [1.75 * k * s, 4.6 * k, 0.3 * k];
+  const legDir = norm([0, 0.15, -1]), hip = s => [1.45 * k * s, 1.5 * k, 1.6 * k];
+  const armH = 3.6 * k, legH = 2.8 * k;
+  const muzzle = onHead(muzzleN, RM * (1 - Math.cos(capM)) - 0.15 * k);
+  const EARS = {
+    round: { pts: arcPts(0, RE, RE, 0, Math.PI / 2, 16), angle: 40, len: RE, flatten: 0.45,
+      intro: '耳朵是半个小球，不塞棉花，缝之前压扁。',
+      stuffNote: '耳朵不塞棉花，用手压扁成半圆形。',
+      sew: '耳朵压扁，开口贴着头，沿开口边缘把前后两层一起缝到头上。' },
+    long: { pts: S([...arcPts(0, 0.9, 0.9, 0, Math.PI / 2, 10), [0.9, 5.2]]), angle: 16, len: 5.2 * k, flatten: 0.4,
+      intro: '兔耳朵是一根长长的扁管：从耳尖开始钩，一直钩到耳根，不塞棉花。',
+      stuffNote: '不塞棉花，压扁。',
+      sew: '耳根先对折一下（让耳朵有点立体的弧度），再沿开口缝到头上。耳朵长，要多缝几针才立得住。' },
+    pointy: { pts: S([[0, 0], [1.3, 1.7]]), angle: 34, len: 1.7 * k, flatten: 0.5, noBoost: true,
+      intro: '猫耳朵是一个小圆锥：从耳尖开始，慢慢加针变宽。',
+      stuffNote: '不塞棉花，压扁成三角形。',
+      sew: '耳朵压扁成三角形，尖朝上，开口贴着头，把前后两层一起缝到头上。' },
+  };
+  const E = EARS[A.ears];
+  const tailOpen = [0, 1.2 * k, -2.3 * k], tailOut = norm([0, 0.75, -0.66]);
+  const TAILS = {
+    pompom: { id: 'tail', name: '尾巴', copies: 1, closed: true, stuff: 'full', color: 'light', cotton: 0.9 * k,
+      pts: arcPts(0, 0.9 * k, 0.9 * k, 0, Math.PI, 24), inst: [{ pos: [0, 1.4 * k, -4.2 * k], dir: [0, 0, 1] }],
+      intro: '兔尾巴是一个白色的小绒球，钩法和小球一样，用浅色线。',
+      sew: '用收口剩下的线尾，把小绒球缝在身体背面、屁股上方（平底往上 2–3 圈）的正中间。' },
+    long: { id: 'tail', name: '尾巴', copies: 1, closed: false, stuff: 'none', color: 'main', thin: true,   // 本来就是细管
+      pts: S([...arcPts(0, 0.55, 0.55, 0, Math.PI / 2, 8), [0.55, 5]]),
+      inst: [{ pos: add(tailOpen, tailOut, 5 * k), dir: neg(tailOut) }],
+      intro: '猫尾巴是一根细长的管子，从尾巴尖开始钩。',
+      stuffNote: '尾巴不塞棉花（或只在尾巴尖塞一点点），软软的更像猫。',
+      sew: '尾巴开口压扁，缝在身体背面、屁股上方（平底往上 2–3 圈）的正中间，尾巴尖朝上翘。' },
+  };
+  const tail = A.tail ? TAILS[A.tail] : null;
+  const nosePos = add(muzzle.pos, muzzleN, 0.1 * k);
+  // 胡须：从嘴套两侧往外斜着伸出去
+  const whiskers = A.whiskers ? [-1, 1].flatMap(s => [0.25, 0, -0.25].map(dy => ({
+    a: add(nosePos, [0.75 * k * s, (dy - 0.25) * k, -0.25 * k]),
+    b: add(nosePos, [2.6 * k * s, (dy * 2.2 - 0.3) * k, -0.7 * k]),
+  }))) : [];
+  return {
+    animal,
+    view: [0.5, 0.45, 1],
+    extras: {
+      eyes: eyeN.map(n => ({ pos: add(C, n, RH), r: 0.32 * k })),
+      nose: { pos: nosePos, r: 0.3 * k },
+      whiskers, whiskerR: 0.035 * k,
+    },
+    parts: [
+      { id: 'head', name: '头', copies: 1, closed: true, stuff: 'full', color: 'main', cotton: RH,
+        pts: arcPts(0, RH, RH, 0, Math.PI, 48), inst: [{ pos: [0, headBottom, 0], dir: [0, 1, 0] }],
+        intro: '头从下巴（脖子）处开始钩，一直钩到头顶收口。中途要装眼睛、塞棉花。', eyeN },
+      { id: 'muzzle', name: '嘴套', copies: 1, closed: false, stuff: 'light', color: 'light',
+        pts: arcPts(0, RM, RM, 0, capM, 16), inst: [muzzle],
+        intro: '嘴套是一个浅浅的小碗，用浅色线钩，之后缝在脸上。',
+        stuffNote: '先不塞棉花，缝到脸上时再塞一点点。' },
+      { id: 'ear', name: '耳朵', copies: 2, closed: false, stuff: 'none', color: 'main', flatten: E.flatten, noBoost: E.noBoost,
+        pts: E.pts,
+        inst: [-1, 1].map(s => onHead(earN(s * E.angle * Math.PI / 180), E.len - 0.35 * k)),
+        intro: E.intro, stuffNote: E.stuffNote },
+      { id: 'body', name: '身体', copies: 1, closed: false, stuff: 'full', color: 'main',
+        pts: S([[0, 0], [1.9, 0], ...arcPts(1.9, 0.9, 0.9, 0, Math.PI / 2, 8), [2.8, 2.6], [1.6, 5.4]]),
+        inst: [{ pos: [0, 0, 0], dir: [0, 1, 0] }],
+        intro: '身体从屁股的平底开始钩，往上逐渐收窄到脖子，开口留着和头缝合。',
+        stuffNote: `塞满棉花，平底要塞平，${animal}才坐得稳。开口先不缝，和头缝合时再补一点棉花。` },
+      { id: 'arm', name: '手臂', copies: 2, closed: false, stuff: 'light', color: 'main',
+        pts: S([...arcPts(0, 0.9, 0.9, 0, Math.PI / 2, 10), [0.9, 3.6]]),
+        inst: [-1, 1].map(s => ({ pos: add(shoulder(s), armDir(s), -armH), dir: armDir(s) })),
+        intro: '手臂从手掌开始钩，是一根一端圆头的小管子。',
+        stuffNote: '只在手掌部分塞一点点棉花，上半段不塞，手臂会自然下垂。' },
+      { id: 'leg', name: '腿', copies: 2, closed: false, stuff: 'full', color: 'main',
+        pts: S([...arcPts(0, 1.3, 1.3, 0, Math.PI / 2, 10), [1.3, 2.8]]),
+        inst: [-1, 1].map(s => ({ pos: add(hip(s), legDir, -legH), dir: legDir })),
+        intro: `腿从脚掌开始钩，比手臂粗、短。${animal}是坐姿，腿朝前伸。`,
+        stuffNote: '塞满棉花，脚掌圆鼓一点更可爱。' },
+      ...(tail ? [tail] : []),
+    ],
+    assembly: B => {
+      const head = B.head, body = B.body;
+      const hc = n => head.rounds[n - 1].count;
+      const thetaOf = n => Math.acos(-n[1]);       // 和“朝下”方向的夹角 = 从底部极点量起的角度
+      const eyeTheta = thetaOf(head.eyeN[0]);
+      const eyeRound = Math.max(1, Math.floor(eyeTheta / Math.PI * head.arcs));
+      const eyeGap = Math.max(3, Math.round(hc(eyeRound) * 2 * Math.atan2(0.38, 1) / (2 * Math.PI)));
+      head.eyeInfo = { round: eyeRound, gap: eyeGap };
+      const muzzleRound = roundAtTheta(head, thetaOf(muzzleN));
+      const earRound = roundAtTheta(head, Math.PI - E.angle * Math.PI / 180);
+      const armRound = roundAtY(body, 4.6 * k), legRound = roundAtY(body, 1.5 * k);
+      return [
+        { key: 'muzzle', title: '缝嘴套', focus: ['muzzle'], how: [
+          `嘴套开口朝脸，中心对准头部第 ${muzzleRound} 圈左右、两眼正中的下方。`,
+          '用嘴套留的长线尾，沿开口边缘一针一针缝到脸上。',
+          '缝到还剩 2 cm 时塞一点点棉花，让嘴套鼓起来，再缝完、藏线。'],
+          tip: '先用珠针把嘴套固定住，从正面看看位置满意了再缝。' },
+        { key: 'nose', title: A.whiskers ? '绣鼻子和胡须' : '绣鼻子', focus: ['muzzle'], showNose: true, how: [
+          '用鼻子色线，在嘴套靠上的正中间横向来回绕 6–8 次，绣出一个小三角鼻子。',
+          '（可选）从鼻子下方往下绣一针短竖线，再向两边各绣一针斜线，就是“人”字形的嘴巴。',
+          ...(A.whiskers ? ['在嘴套两侧各绣 3 根胡须：从嘴套边缘出针，往外斜着拉一长针，长度约 2 cm。胡须线要和主色有反差，深色玩偶用白线，浅色玩偶用黑线。'] : [])],
+          tip: '起针和收针的线头都从头部的其他位置穿出、剪断，藏进棉花里。' },
+        { key: 'ears', title: '缝耳朵', focus: ['ear'], how: [
+          `两只耳朵缝在头部第 ${earRound} 圈附近（靠近头顶），左右对称，两耳在这一圈上相隔约半圈（${Math.round(hc(earRound) / 2)} 针）。`,
+          E.sew],
+          tip: '缝之前从正面比一比：两只耳朵要和两只眼睛对称。' },
+        { key: 'headbody', title: '缝合头和身体', focus: ['head', 'body'], how: [
+          '身体的开口（脖子）对准头部底部中心，也就是头的起针处（第 1–3 圈）。',
+          '身体前面要和脸朝同一个方向。',
+          '用身体留的长线尾，沿脖子开口一圈缝到头上；缝到最后 2 cm 时补一点棉花，让脖子不晃。'],
+          tip: `头比较重，脖子塞紧一点，${animal}就不会“低头”。` },
+        { key: 'arms', title: '缝手臂', focus: ['arm'], how: [
+          `手臂开口压扁，缝在身体两侧第 ${armRound} 圈附近（脖子下方一点）。`,
+          '让手掌稍微朝前，两只手臂高度对齐。'],
+          tip: '手臂只缝开口那一小段，这样手臂可以前后摆动。' },
+        { key: 'legs', title: '缝腿', focus: ['leg'], how: [
+          `腿的开口贴在身体前下方第 ${legRound} 圈附近，脚掌朝前，左右两条腿之间留 1–2 针的空隙。`,
+          '沿开口边缘一圈缝牢，缝到最后补一点棉花。'],
+          tip: `缝好后把${animal}放在桌上，确认能稳稳坐住；坐不稳就把腿的位置往下挪一点。` },
+        ...(tail ? [{ key: 'tail', title: '缝尾巴', focus: ['tail'], how: [tail.sew], tip: '尾巴缝得低一点，坐着的时候会帮忙撑住，更稳。' }] : []),
+      ];
+    },
+  };
+}
+
+function buildPattern(mode, size, st, row) {
+  const w = 10 / st, h = 10 / row;
+  const T = makeTemplate(mode, size);
+  const parts = T.parts.map(d => buildPart(d, w, h));
+  const byId = Object.fromEntries(parts.map(p => [p.id, p]));
+  const P = { mode, parts, byId, w, h, animal: T.animal, view: T.view, extras: T.extras || {}, assembly: T.assembly ? T.assembly(byId) : [] };
+  const p0 = parts[0];
+  P.N = parts.reduce((a, p) => a + p.N * p.copies, 0);
+  if (mode === 'flat') P.size = 2 * p0.N * h;
+  else if (mode === 'sphere') P.size = 2 * p0.arcs * h / Math.PI;   // 按实际圈数反推的直径
+  else P.size = size * (byId.head.scale + byId.body.scale) / 2;
+  return P;
+}
+
+function presetInfo() {
+  const p = PRESETS[$('preset').value];
+  return p || { yarn: '你的线', hook: '和线标签推荐一致的钩针', st: +$('gst').value, row: +$('grow').value };
+}
+
+function roundHow(r) {
+  const how = [];
+  if (r.n === 1) {
+    how.push('线在手指上绕 2 圈做成环，钩针从环里挂线拉出，钩 1 针锁针固定（这针不算）。');
+    how.push(`在环里钩 ${r.count} 针短针。`);
+    how.push('拉线尾，把中心的环收紧到看不见洞。');
+    how.push('在第 1 针上挂记号扣。');
+    return how;
+  }
+  how.push('第 1 针钩进记号扣所在的那针（上一圈第 1 针），把记号扣取下来。');
+  if (!r.op) how.push(`每个针眼钩 1 针短针，一共 ${r.count} 针。`);
+  else if (r.all) how.push(r.op === 'inc' ? `每个针眼都钩 2 针短针（加针），一共加针 ${r.q} 次。` : `每 2 针并成 1 针（减针），一共减针 ${r.q} 次。`);
+  else if (r.staggered) {
+    how.push(`按「${r.text}」钩。`);
+    how.push(`${NAME[r.op]}位置和上一圈错开了半格，所以开头和结尾的短针数不一样。`);
+  } else how.push(`重复 ${r.m} 次：${runText(r.unit)}。`);
+  how.push('把记号扣挂到本圈刚钩的第 1 针上。');
+  return how;
+}
+
+function roundTip(part, r) {
+  const n = r.n, N = part.N;
+  if (n === 1) return '中心一定先收紧再往下钩，钩到后面就很难再收了。';
+  if (n === 2) return `加针 = 同一个针眼钩 2 针。上一圈 ${r.prev} 针，每针变 2 针，正好 ${r.count} 针。`;
+  if (part.flatCounts) {
+    if (n === N) return '最后一圈！钩完把圆片放平：中间鼓起像碗 → 手太紧或加针不够；边缘起波浪 → 手太松，可以换小一号钩针重钩最后几圈。';
+    if (r.staggered) return '为什么要错开？如果每圈都在同一位置加针，加针点会连成 6 条直线，圆片就会钩成六边形。';
+    return '每钩完一圈都放平看一下：应该是平的，不卷边也不起波浪。';
+  }
+  const prevOp = part.rounds[n - 2].op;
+  if (!r.op && prevOp === 'inc') return '从这圈开始不再加针，织片会往上翘、变成碗状。这是正常的，立体就是这样长出来的。';
+  if (r.op === 'dec' && prevOp !== 'dec') return '开始减针了，开口会一圈圈收小。推荐用「隐形减针」（见左侧针法速查），外面几乎看不出痕迹。';
+  if (n === 3) return '钩到这里，看看织片哪面是一排排小 V 字：那是正面，要朝外。如果 V 在里面，把织片翻过来再继续。';
+  if (n === N) return part.closed ? `最后一圈！钩完开口只剩 ${r.count} 针，下一步收口。` : '最后一圈！钩完下一步收尾。';
+  if (part.eyeInfo && n === part.eyeInfo.round) return '眼睛就装在这一圈和下一圈之间，钩完这圈可以先比一比位置。';
+  if (r.staggered) return `${NAME[r.op]}位置和上一圈错开，表面会更圆，不会出现一道道棱。`;
+  if (!r.op) return `不加不减，钩完数一下还是 ${r.count} 针。`;
+  return `钩完数一下：应该是 ${r.count} 针。`;
+}
+
+function partEndHow(part) {
+  if (part.closed) return [
+    '剪线，留约 20 cm 线尾，把线尾从钩针上的线圈里整个拉出、拉紧。',
+    `线尾穿进缝针，从外往里依次穿过最后 ${part.rounds[part.N - 1].count} 针的<b>前半针</b>。`,
+    '拉紧线尾，开口就像束口袋一样收拢了。',
+    part.sew ? '这根线尾<b>先别剪</b>，等会儿用它把这个部件缝到身体上。'
+      : '缝针从收口处扎进去，从另一侧穿出，拉紧后贴着表面剪断，线尾会缩回里面藏起来。'];
+  if (part.flatCounts) return [
+    '在下一针钩 1 针引拔针，让螺旋的最后一圈平滑过渡，不留台阶。',
+    '剪线，留约 15 cm 线尾，把线尾从钩针上的线圈里整个拉出、拉紧。',
+    '用缝针把线尾在背面沿针目穿行 3–4 cm，再反方向穿回一点，剪掉多余部分。起针的线尾同样处理。',
+    '（可选）垫一块布，用蒸汽熨斗轻熨，圆片会更平整。'];
+  return [
+    '在下一针钩 1 针引拔针，让螺旋结尾平滑。',
+    '剪线，<b>留约 30 cm 长线尾</b>（之后缝合要用，先别剪短），拉出锁紧。',
+    '起针处的短线尾在里面打结藏好。',
+    part.stuffNote];
+}
+
+function generate(resetStep) {
+  const st = +$('gst').value, row = +$('grow').value, size = +$('diam').value;
+  if (!(st > 0 && row > 0 && size > 0)) return;
+  const P = state.pattern = buildPattern(state.mode, size, st, row);
+  const multi = P.parts.length > 1;
+  state.steps = [{ type: 'prep' }];
+  P.parts.forEach((part, pi) => {
+    if (multi) state.steps.push({ type: 'partStart', part, pi });
+    for (const r of part.rounds) {
+      if (part.stuffBefore === r.n) {
+        if (part.eyeN) state.steps.push({ type: 'eyes', part });
+        state.steps.push({ type: 'stuff', part, before: r.n, open: r.prev });
+      }
+      state.steps.push({ type: 'round', part, r });
+    }
+    state.steps.push({ type: 'partEnd', part });
+    if (part.copies > 1) state.steps.push({ type: 'repeat', part });
+  });
+  for (const a of P.assembly) state.steps.push({ type: 'assemble', ...a });
+  state.steps.push({ type: 'done' });
+  if (resetStep) state.step = 0;
+  state.step = Math.min(state.step, state.steps.length - 1);
+  const p0 = P.parts[0];
+  $('summary').innerHTML = P.mode === 'flat'
+    ? `共 <b>${p0.N}</b> 圈，最后一圈 <b>${p0.maxCount}</b> 针<br>预计成品直径约 <b>${P.size.toFixed(1)} cm</b>（每圈约高 ${(P.h * 10).toFixed(1)} mm）`
+    : P.mode === 'sphere'
+    ? `共 <b>${p0.N}</b> 圈，最宽处 <b>${p0.maxCount}</b> 针<br>预计成品直径约 <b>${P.size.toFixed(1)} cm</b>（塞好棉花后的大小）`
+    : `${P.parts.map(p => `${p.name} ${p.N} 圈${p.copies > 1 ? ' ×' + p.copies : ''}`).join(' · ')}<br>合计约 <b>${P.N}</b> 圈，坐高约 <b>${P.size.toFixed(1)} cm</b>` +
+      (P.parts.some(p => !p.thin && p.maxCount <= 6) ? '<br><b style="color:var(--warn)">这个尺寸对这么粗的线来说太小，部分部件只剩 6 针。建议加大尺寸或换细一点的线。</b>' : '');
+  build3D();
+  showStep();
+}
+
+// ---------- 步骤面板 ----------
+function colorOf(part) { return state.colors[part.color]; }
+function colorName(part) { return COLOR_NAMES[part.color]; }
+const swatch = key => `<span class="swatch" style="background:${state.colors[key]}"></span>`;
+// 胡须要和主色有反差：深色玩偶用白线
+const isDark = () => new THREE.Color(state.colors.main).getHSL({}).l < 0.35;
+const whiskerColor = () => isDark() ? '#f4f0ea' : '#1a1412';
+const eyeColor = () => isDark() ? '#d9a62e' : '#1a1412';   // 深色玩偶用琥珀色眼睛，不然看不见
+
+// ---------- 配色 ----------
+function renderPalettes() {
+  const c = state.colors;
+  $('palettes').innerHTML = PALETTES.map((p, i) => {
+    const on = p.main === c.main && p.light === c.light && p.nose === c.nose;
+    return `<button data-i="${i}" class="${on ? 'on' : ''}"><span class="dots"><i style="background:${p.main}"></i><i style="background:${p.light}"></i><i style="background:${p.nose}"></i></span>${p.name}</button>`;
+  }).join('');
+  $('cMain').value = c.main; $('cLight').value = c.light; $('cNose').value = c.nose;
+}
+
+// 只换材质颜色，不重建模型、不动进度
+function setColors(patch, silent) {
+  Object.assign(state.colors, patch);
+  renderPalettes();
+  if (three.mats) {
+    for (const key of ['main', 'light']) {
+      const col = new THREE.Color(state.colors[key]);
+      three.mats.color[key].done.color.copy(col);
+      three.mats.color[key].base.color.copy(col).multiplyScalar(GAP_SHADE);
+    }
+    three.noseMat?.color.set(state.colors.nose);
+    three.whiskerMat?.color.set(whiskerColor());
+    three.eyeMat?.color.set(eyeColor());
+    $('lgDone').style.background = state.colors.main;
+  }
+  saveStore();
+  if (!silent && state.pattern) { showStep(); }
+}
+$('palettes').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const { main, light, nose } = PALETTES[+b.dataset.i];
+  setColors({ main, light, nose });
+};
+$('cMain').oninput = e => setColors({ main: e.target.value });
+$('cLight').oninput = e => setColors({ light: e.target.value });
+$('cNose').oninput = e => setColors({ nose: e.target.value });
+
+function showStep() {
+  const s = state.steps[state.step], P = state.pattern, p = presetInfo();
+  const total = state.steps.length - 1;
+  const multi = P.parts.length > 1;
+  state.focus = -1;
+  let html = '';
+  const tag = s.part && multi ? `<div class="part-tag">${s.part.name}${s.part.copies > 1 ? `（共 ${s.part.copies} 个）` : ''} · <span class="swatch" style="background:${colorOf(s.part)}"></span> ${colorName(s.part)}</div>` : '';
+  const head = (title, sub) => `${tag}<div class="step-head"><h3>${title}</h3><span class="muted">${sub}</span></div>
+    <div class="progress"><div style="width:${state.step / total * 100}%"></div></div>`;
+  const of = `第 ${state.step} 步 / 共 ${total} 步`;
+  const list = items => `<ol class="how">${items.map(x => `<li>${x}</li>`).join('')}</ol>`;
+
+  if (s.type === 'prep') {
+    const sphere = P.mode !== 'flat';
+    const items = [`${swatch('main')} 主色线：${p.yarn}`];
+    if (P.animal) {
+      const A = ANIMALS[P.mode];
+      items.push(`${swatch('light')} 浅色线少量（嘴套${A.tail === 'pompom' ? '、尾巴' : ''}用）`);
+      items.push(`${swatch('nose')} 鼻子色线少量${A.whiskers ? '，再加黑线或白线少量（胡须用）' : ''}`);
+    }
+    items.push(`钩针：${p.hook}${sphere ? '（做玩偶可以再小 0.5 mm，钩得紧一点，塞棉花后不会漏棉）' : ''}`);
+    items.push('记号扣 1 个（没有的话用一段别色线或回形针）');
+    if (P.animal) items.push('安全眼 1 对（6–8 mm，深色玩偶建议用琥珀色、绿色等彩色眼）；给 3 岁以下小朋友的话改用黑线绣眼睛');
+    if (sphere) items.push('填充棉一把');
+    items.push('缝针（藏线头、缝合用）、剪刀' + (P.animal ? '、珠针几根' : ''));
+    const goal = P.animal
+      ? `目标：一只坐高约 <b>${P.size.toFixed(1)} cm</b> 的${P.animal}，由 ${P.parts.reduce((a, q) => a + q.copies, 0)} 个部件组成：${P.parts.map(q => q.name + (q.copies > 1 ? '×' + q.copies : '')).join('、')}。先把部件一个个钩好，最后缝在一起。`
+      : `目标：钩一个直径约 <b>${P.size.toFixed(1)} cm</b> 的<b>${MODES[P.mode].name}</b>，共 <b>${P.parts[0].N} 圈</b>，全部用短针螺旋钩。`;
+    const flow = P.animal ? '所有部件都是同一种钩法：环形起针 → 加针变大 → 不加不减长高 →（减针收小）。和小球是一样的道理。'
+      : P.mode === 'sphere' ? '小球的过程：先像圆片一样往外加针 → 几圈不加不减长出“腰” → 减针收小 → 塞棉花 → 收口。'
+      : '不熟悉环形起针、短针、加针？先看左下角的「针法速查」。';
+    html = head('准备工作', of) + `<p>${goal}</p>${list(items)}<div class="tip">${flow} 准备好了点下面的按钮。</div>`;
+  } else if (s.type === 'partStart') {
+    const q = s.part;
+    html = head(`部件 ${s.pi + 1} / ${P.parts.length}：${q.name}`, of) + `
+      <p>${q.intro}</p>
+      ${list([`用${colorName(q)}，共 <b>${q.N}</b> 圈，最宽处 ${q.maxCount} 针。`,
+        q.copies > 1 ? `需要钩 <b>${q.copies}</b> 个一样的。先跟着步骤钩第 1 个，钩完再照样钩第 2 个。` : '只需要钩 1 个。',
+        q.closed ? '钩完会收口封住。' : '钩完开口留着，留长线尾用来缝合。'])}
+      <div class="tip">3D 视图已经转到这个部件。半透明的是还没钩的部分，可以先看看它最后是什么形状。</div>`;
+  } else if (s.type === 'round') {
+    const r = s.r;
+    const chips = r.tokens.map((t, i) => `<span class="chip ${t === 'sc' ? '' : t}" data-i="${i}">${t === 'inc' ? '加' : t === 'dec' ? '减' : '短'}</span>`).join('');
+    const diff = r.n === 1 ? '' : r.count > r.prev ? `（比上一圈多 ${r.count - r.prev} 针）` : r.count < r.prev ? `（比上一圈少 ${r.prev - r.count} 针）` : '（和上一圈一样）';
+    html = head(`第 ${r.n} 圈${multi ? ` <span class="muted">/ ${s.part.N}</span>` : ''}`, of) + `
+      <div class="instr">R${r.n}：${r.text}</div>
+      <div class="count">钩完后本圈应有 <b>${r.count}</b> 针${diff}</div>
+      ${list(roundHow(r))}
+      <div class="muted">本圈逐针顺序（点击可在 3D 中定位）：</div>
+      <div class="chips" id="chips">${chips}</div>
+      <div class="tip">${roundTip(s.part, r)}</div>
+      <button id="toCloseup" style="width:100%;margin-top:8px">▶ 看这一圈每一针的手法动画</button>`;
+  } else if (s.type === 'eyes') {
+    const e = s.part.eyeInfo;
+    html = head('装眼睛', of) + `
+      <p>趁还没塞棉花、手还能伸进去，先把眼睛装好。</p>
+      ${list([
+        '先确定脸的方向：每圈的起点（记号扣那一列）会有一点点错位，把它放在<b>后脑勺</b>，对面就是脸。',
+        `两只眼睛装在第 <b>${e.round}</b> 圈和第 <b>${e.round + 1}</b> 圈之间。`,
+        `两眼之间相隔约 <b>${e.gap}</b> 针，左右对称。`,
+        '安全眼从外往里插进针目之间的缝隙，在里面扣上卡扣，用力按到底。'])}
+      <div class="tip">卡扣一扣上就拆不下来了！先用珠针插在两个位置上，从正面看满意了再扣。</div>`;
+  } else if (s.type === 'stuff') {
+    html = head('塞棉花', of) + `
+      <p>现在开口还剩 <b>${s.open}</b> 针，手指还伸得进去，是塞棉花的好时机。</p>
+      ${list(['把起针的线尾塞进里面（或先藏好）。',
+        '棉花撕成小团，一小团一小团地塞，先塞底部，再往上补。',
+        '塞到捏起来有弹性、形状圆润，针目之间看不到白色棉花即可。',
+        '剩下几圈边钩边用钩针尾部把棉花往里推、补一点。'])}
+      <div class="tip">塞得太少会瘪、表面起皱；太多会把针目撑大露棉。宁可多次少量。</div>`;
+  } else if (s.type === 'partEnd') {
+    html = head(multi ? `${s.part.name}：收尾` : '收尾', of) + list(partEndHow(s.part));
+  } else if (s.type === 'repeat') {
+    html = head(`再钩 1 个${s.part.name}`, of) + `
+      <p>按刚才的步骤，再钩一个一模一样的${s.part.name}（共 ${s.part.N} 圈），最后同样收尾。</p>
+      <div class="tip">图解可以在右下方的「完整图解」里对照着看。两个钩完放在一起比一比，大小应该一样。</div>`;
+  } else if (s.type === 'assemble') {
+    html = head(s.title, of) + list(s.how) + (s.tip ? `<div class="tip">${s.tip}</div>` : '');
+  } else {
+    html = head('完成！', '全部步骤已完成') + (P.animal
+      ? `<p>你的${P.animal}完成了！坐高约 ${P.size.toFixed(1)} cm。可以再系个小围巾、绣上腮红。</p>`
+      : P.mode === 'sphere'
+      ? `<p>你钩出了一个 ${P.parts[0].N} 圈、直径约 ${P.size.toFixed(1)} cm 的小球。加上眼睛和耳朵，它就可以变成玩偶的头了。</p>`
+      : `<p>你钩出了一个 ${P.parts[0].N} 圈、约 ${P.size.toFixed(1)} cm 的圆片。可以当杯垫，也可以作为玩偶、包包的底。</p>`) +
+      `<p class="muted">量一下实际尺寸：如果比预计的大或小，说明你的手松或手紧，把左侧的密度改成实测值，下次的图解就会更准。</p>`;
+  }
+  const last = state.step === state.steps.length - 1;
+  html += `<div class="nav">
+      <button id="prev" ${state.step === 0 ? 'disabled' : ''}>← 上一步</button>
+      <button class="primary" id="next" ${last ? 'disabled' : ''}>${last ? '已完成' : s.type === 'prep' ? '准备好了 →' : '做完了，下一步 →'}</button>
+    </div>
+    <p class="muted" style="margin:8px 0 0">快捷键：<kbd>Enter</kbd> / <kbd>→</kbd> 下一步，<kbd>←</kbd> 上一步</p>`;
+  $('stepCard').innerHTML = html;
+  $('prev').onclick = () => go(-1);
+  $('next').onclick = () => go(1);
+  const chipsEl = $('chips');
+  if (chipsEl) chipsEl.onclick = e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    const i = +c.dataset.i;
+    state.focus = state.focus === i ? -1 : i;
+    chipsEl.querySelectorAll('.chip').forEach(el => el.classList.toggle('focus', +el.dataset.i === state.focus));
+    applyMaterials();
+    // 特写模式下，点哪个针法标签就演示哪种针法
+    if (state.view === 'closeup' && state.focus >= 0) cuSetSeq([s.r.n === 1 ? CU_SEQS.ring() : CU_SEQS[s.r.tokens[state.focus]]()]);
+  };
+  const toCu = $('toCloseup');
+  if (toCu) toCu.onclick = () => setView('closeup');
+  renderTable();
+  update3D();
+  saveStore();
+}
+
+function go(d) {
+  const t = state.step + d;
+  if (t < 0 || t >= state.steps.length) return;
+  state.step = t;
+  showStep();
+}
+
+function renderTable() {
+  const multi = state.pattern.parts.length > 1;
+  let html = '';
+  state.steps.forEach((s, i) => {
+    const cls = i === state.step ? 'cur' : i < state.step ? 'done' : '';
+    const row = (a, b, c, extra = '') => `<tr data-i="${i}" class="${cls} ${extra}"><td>${a}</td><td>${b}</td><td>${c}</td></tr>`;
+    if (s.type === 'partStart') html += row(`▸ ${s.part.name}`, `${s.part.copies > 1 ? `钩 ${s.part.copies} 个 · ` : ''}${colorName(s.part)}`, '', 'parthead');
+    else if (s.type === 'round') html += row(`R${s.r.n}`, s.r.text, `(${s.r.count})`);
+    else if (s.type === 'eyes') html += row('◉', '装眼睛', '', 'special');
+    else if (s.type === 'stuff') html += row('☁', '塞棉花', '', 'special');
+    else if (s.type === 'partEnd') html += row('收尾', s.part.closed ? '穿过最后几针收口，藏线头' : s.part.flatCounts ? '引拔 1 针，断线，藏线头' : '引拔 1 针，留 30 cm 线尾', '');
+    else if (s.type === 'repeat') html += row('×2', `再钩 1 个${s.part.name}`, '', 'special');
+    else if (s.type === 'assemble') {
+      if (state.steps[i - 1].type !== 'assemble') html += `<tr data-i="${i}" class="parthead"><td>▸ 组装</td><td></td><td></td></tr>`;
+      html += row('✂', s.title, '');
+    }
+  });
+  $('table').innerHTML = html;
+  const cur = $('table').querySelector('tr.cur');
+  if (cur && multi) cur.scrollIntoView({ block: 'nearest' });
+}
+$('table').onclick = e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  state.step = +tr.dataset.i;
+  showStep();
+};
+
+// 走到当前步骤为止，每个部件钩到了哪里
+function progress() {
+  const pr = {};
+  for (const q of state.pattern.parts) pr[q.id] = { done: 0, cur: 0, copyDone: false, stuffed: false };
+  let eyes = false, nose = false;
+  for (let i = 0; i <= state.step; i++) {
+    const s = state.steps[i], q = s.part && pr[s.part.id];
+    if (s.type === 'round') { if (i < state.step) q.done = s.r.n; else q.cur = s.r.n; }
+    else if (s.type === 'stuff') q.stuffed = true;
+    else if (s.type === 'eyes') eyes = true;
+    else if (s.type === 'partEnd') q.done = s.part.N;
+    else if (s.type === 'repeat') q.copyDone = true;
+    else if (s.type === 'assemble' && s.showNose) nose = true;
+  }
+  return { pr, eyes, nose };
+}
+
+// ---------- 3D ----------
+const three = {};
+function init3D() {
+  const el = $('three');
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+  el.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 500);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.addEventListener('start', () => { three.goal = null; });   // 用户自己拖动时不再自动转镜头
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a6a, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(6, 14, 8); scene.add(sun);
+  Object.assign(three, { renderer, scene, camera, controls, root: null, clock: new THREE.Clock(), animStart: 0, goal: null });
+  const resize = () => {
+    const w = el.clientWidth, h = el.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (CU.camera) { CU.camera.aspect = w / h; CU.camera.updateProjectionMatrix(); }
+  };
+  new ResizeObserver(resize).observe(el); resize();
+  renderer.setAnimationLoop(tick);
+}
+
+const V = a => new THREE.Vector3(a[0], a[1], a[2]);
+const GAP_SHADE = 0.5;   // 针目之间缝隙的明暗（织物底色 = 线色 × 这个系数）
+
+// 一针短针的模型（单位尺寸：宽 1、高 1）。从正面看是一个 V：两条腿从上一圈的针眼斜着伸出来，
+// 顶上横躺着一个线圈（下一圈就钩进这个线圈里）。局部 -y 指向下一圈，+z 朝织物外面。
+function makeStitchGeometry() {
+  const tube = (pts, closed, r) => new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), closed), closed ? 14 : 7, r, 5, closed);
+  const legs = [-1, 1].map(s => tube([[0.05 * s, 0.48, -0.04], [0.24 * s, 0.05, 0.16], [0.42 * s, -0.36, 0.05]], false, 0.15));
+  const top = tube([[-0.47, -0.44, 0.0], [0, -0.41, 0.13], [0.47, -0.44, 0.0], [0, -0.5, -0.1]], true, 0.11);
+  return mergeGeometries([...legs, top]);
+}
+
+function mergeGeometries(geoms) {
+  const pos = [], nor = [], uv = [], idx = [];
+  let off = 0;
+  for (const g of geoms) {
+    pos.push(...g.attributes.position.array);
+    nor.push(...g.attributes.normal.array);
+    uv.push(...g.attributes.uv.array);
+    for (const i of g.index.array) idx.push(i + off);
+    off += g.attributes.position.count;
+    g.dispose();
+  }
+  const m = new THREE.BufferGeometry();
+  m.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  m.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  m.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  m.setIndex(idx);
+  return m;
+}
+
+// 毛线纹理：斜向的明暗条纹，贴在管子上就像几股线拧在一起
+function yarnTexture() {
+  const S = 64, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d'), img = x.createImageData(S, S);
+  for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
+    const s = ((px * 1.5 + py) % 32) / 32;
+    const v = Math.round(255 * (0.82 + 0.18 * Math.sin(Math.PI * s)));
+    const i = (py * S + px) * 4;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, 1);
+  return t;
+}
+const UP = new THREE.Vector3(0, 1, 0);
+
+function build3D() {
+  if (!three.renderer) return;
+  if (three.root) {
+    three.scene.remove(three.root);
+    three.root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  }
+  const P = state.pattern, h = P.h, w = P.w;
+  const root = new THREE.Group();
+  const mk = (o) => new THREE.MeshStandardMaterial(o);
+  const tex = three.yarnTex || (three.yarnTex = yarnTexture());
+  const yarn = o => mk({ roughness: 0.9, map: tex, bumpMap: tex, bumpScale: 0.35, ...o });
+  const colorMats = {};
+  for (const c of ['main', 'light']) {
+    const col = new THREE.Color(state.colors[c]);
+    colorMats[c] = {
+      done: yarn({ color: col }),
+      base: mk({ color: col.clone().multiplyScalar(GAP_SHADE), roughness: 1, side: THREE.DoubleSide }),
+    };
+  }
+  const mats = {
+    color: colorMats,
+    cur: yarn({ color: 0xf2c14e, emissive: 0x3a2a00 }),
+    inc: yarn({ color: 0xd9644a, emissive: 0x3a0e04 }),
+    dec: yarn({ color: 0x4f7fd1, emissive: 0x0a1a3a }),
+    focus: yarn({ color: 0xffffff, emissive: 0x555555 }),
+    ghost: mk({ color: 0xcccccc, transparent: true, opacity: 0.16, depthWrite: false }),
+    ghostBase: new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }),
+  };
+  $('lgDone').style.background = state.colors.main;
+  const stitchGeo = three.stitchGeo || (three.stitchGeo = makeStitchGeometry());
+  const basis = new THREE.Matrix4();
+  const parts = {};
+  for (const part of P.parts) {
+    const insts = part.inst.map(ins => {
+      const group = new THREE.Group();
+      group.position.copy(V(ins.pos));
+      group.quaternion.setFromUnitVectors(UP, V(ins.dir).normalize());
+      if (part.flatten) group.scale.set(1, 1, part.flatten);
+      const rounds = [];
+      const ds = part.L / part.arcs;
+      for (const r of part.rounds) {
+        const stitches = [];
+        const sm = part.at((r.n - 0.5) * ds);   // 每针占满这一圈的高度
+        let si = 0;
+        r.tokens.forEach((tk, ti) => {
+          for (let j = 0; j < OUT[tk]; j++, si++) {
+            // 每圈第 1 针（记号扣）放在背面 -z 方向
+            const phi = -Math.PI / 2 + (si + 0.5) / r.count * Math.PI * 2;
+            const cp = Math.cos(phi), sp = Math.sin(phi);
+            const p = new THREE.Vector3(sm.r * cp, sm.y, sm.r * sp);
+            const nrm = new THREE.Vector3(sm.nr * cp, sm.ny, sm.nr * sp).normalize();
+            const t = new THREE.Vector3(-sp, 0, cp);
+            const b = new THREE.Vector3().crossVectors(nrm, t);
+            // 针目模型的 -y 要指向下一圈（V 字开口朝上长）；必要时绕法线转半圈
+            const up = new THREE.Vector3(sm.tr * cp, sm.ty, sm.tr * sp);
+            if (b.dot(up) > 0) { t.negate(); b.negate(); }
+            const m = new THREE.Mesh(stitchGeo, mats.ghost);
+            // 局部 x 沿钩织方向，y 沿圈与圈之间，z 朝织物外面
+            m.quaternion.setFromRotationMatrix(basis.makeBasis(t, b, nrm));
+            m.position.copy(p);
+            const sw = Math.min(w, 2 * Math.PI * Math.max(sm.r, 0.01) / r.count);
+            const base = new THREE.Vector3(sw * 1.05, ds * 1.05, h * 0.85);
+            m.scale.copy(base);
+            group.add(m);
+            stitches.push({ mesh: m, base, kind: tk, token: ti, p, nrm });
+          }
+        });
+        // 每圈下面垫一条“织物带”，让钩好的部分看起来是连续的面
+        const lathePts = [];
+        for (let i = 0; i <= 3; i++) {
+          const a = part.at((r.n - 1 + i / 3) * ds);
+          lathePts.push(new THREE.Vector2(Math.max(0, a.r - a.nr * h * 0.18), a.y - a.ny * h * 0.18));
+        }
+        const band = new THREE.Mesh(new THREE.LatheGeometry(lathePts, 48), mats.ghostBase);
+        group.add(band);
+        rounds.push({ n: r.n, stitches, band });
+      }
+      let cotton = null;
+      if (part.cotton) {
+        cotton = new THREE.Mesh(new THREE.IcosahedronGeometry(part.cotton * 0.86, 2), mk({ color: 0xfaf8f2, roughness: 1, flatShading: true }));
+        cotton.position.y = part.cotton;
+        group.add(cotton);
+      }
+      root.add(group);
+      return { group, rounds, cotton };
+    });
+    parts[part.id] = { part, insts };
+  }
+  // 眼睛、鼻子（颜色随配色变化，见 setColors）
+  three.eyeMat = mk({ color: eyeColor(), roughness: 0.25, metalness: 0.1 });
+  const eyes = (P.extras.eyes || []).map(e => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(e.r, 16, 12), three.eyeMat);
+    m.position.copy(V(e.pos)); root.add(m); return m;
+  });
+  let nose = null;
+  if (P.extras.nose) {
+    // 鼻子和胡须一起，在“绣鼻子”那一步出现
+    nose = new THREE.Group();
+    three.noseMat = mk({ color: state.colors.nose, roughness: 0.8 });
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(P.extras.nose.r, 16, 12), three.noseMat);
+    tip.scale.set(1.3, 0.8, 0.6);
+    tip.position.copy(V(P.extras.nose.pos));
+    nose.add(tip);
+    three.whiskerMat = mk({ color: whiskerColor(), roughness: 0.6 });
+    for (const wk of P.extras.whiskers || []) {
+      const a = V(wk.a), b = V(wk.b), len = a.distanceTo(b);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(P.extras.whiskerR, P.extras.whiskerR, len, 6), three.whiskerMat);
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
+      nose.add(m);
+    }
+    root.add(nose);
+  }
+  // 记号扣和钩针
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(h * 0.28, 16, 12), mk({ color: 0xee3333 }));
+  const hook = new THREE.Mesh(new THREE.ConeGeometry(h * 0.18, h * 1.6, 12), mk({ color: 0x9aa3ad, metalness: 0.6, roughness: 0.3 }));
+  Object.assign(three, { root, mats, parts, marker, hook, eyes, nose, focusKey: null, pulse: [] });
+  three.scene.add(root);
+}
+
+function applyMaterials() {
+  if (!three.parts) return;
+  const { pr } = progress(), m = three.mats;
+  for (const { part, insts } of Object.values(three.parts)) {
+    const q = pr[part.id], cm = m.color[part.color];
+    insts.forEach((inst, k) => {
+      for (const R of inst.rounds) {
+        const st = k > 0 ? (q.copyDone ? 'done' : 'ghost') : R.n <= q.done ? 'done' : R.n === q.cur ? 'cur' : 'ghost';
+        for (const s of R.stitches) {
+          s.mesh.material = st === 'done' ? cm.done
+            : st === 'ghost' ? m.ghost
+            : s.token === state.focus ? m.focus
+            : s.kind === 'sc' ? m.cur : m[s.kind];
+        }
+        R.band.material = st === 'ghost' ? m.ghostBase : cm.base;
+      }
+    });
+  }
+}
+
+// 当前步骤应该看哪些物体
+function focusTargets() {
+  const s = state.steps[state.step], T = three.parts;
+  if (s.part && s.type === 'repeat') return { key: s.part.id + '#2', objs: [T[s.part.id].insts[1].group], part: s.part, inst: s.part.inst[1] };
+  if (s.part) return { key: s.part.id, objs: [T[s.part.id].insts[0].group], part: s.part, inst: s.part.inst[0] };
+  if (s.type === 'assemble') return { key: 'asm:' + s.key, objs: s.focus.flatMap(id => T[id].insts.map(i => i.group)), pulse: true };
+  return { key: 'all', objs: [three.root] };
+}
+
+function focusCamera(force) {
+  const f = focusTargets();
+  three.pulse = f.pulse ? f.objs : (state.steps[state.step].type === 'repeat' ? f.objs : []);
+  if (!force && f.key === three.focusKey) return;
+  three.focusKey = f.key;
+  const box = new THREE.Box3();
+  f.objs.forEach(o => box.expandByObject(o));
+  const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+  const dir = V(state.pattern.view).normalize();
+  // 单个部件：从部件“底部”那一侧斜着看，起针的几圈也能看到
+  if (f.inst && state.pattern.parts.length > 1) dir.addScaledVector(V(f.inst.dir).normalize(), -0.5).normalize();
+  three.goal = { target: c, pos: c.clone().addScaledVector(dir, Math.max(size * 1.3, 3)) };
+}
+
+function update3D() {
+  if (!three.parts) return;
+  applyMaterials();
+  three.animStart = three.clock.getElapsedTime();
+  const { pr, eyes, nose } = progress(), P = state.pattern;
+  for (const { insts } of Object.values(three.parts)) for (const inst of insts) {
+    inst.group.updateMatrix();
+    for (const R of inst.rounds) for (const s of R.stitches) { s.mesh.scale.copy(s.base); s.mesh.visible = true; }
+  }
+  // 当前正在钩的那一圈
+  const s = state.steps[state.step];
+  three.cur = null;
+  if (s.type === 'round') {
+    const inst = three.parts[s.part.id].insts[0];
+    three.cur = inst.rounds[s.r.n - 1];
+    inst.group.add(three.marker, three.hook);
+    const s0 = three.cur.stitches[0];
+    three.marker.position.copy(s0.p).addScaledVector(s0.nrm, P.h * 0.45);
+  }
+  three.marker.visible = three.hook.visible = !!three.cur;
+  for (const { part, insts } of Object.values(three.parts)) {
+    const q = pr[part.id];
+    insts.forEach((inst, k) => { if (inst.cotton) inst.cotton.visible = q.stuffed || (k > 0 && q.copyDone); });
+  }
+  three.eyes.forEach(e => { e.visible = eyes; });
+  if (three.nose) three.nose.visible = nose;
+  focusCamera(false);
+  if (state.view === 'closeup') cuSyncStep();
+}
+
+function resetView() { focusCamera(true); }
+
+function tick() {
+  const T = three;
+  if (state.view === 'closeup' && CU.built) {
+    cuTick();
+    T.renderer.render(CU.scene, CU.camera);
+    return;
+  }
+  if (T.goal) {
+    T.camera.position.lerp(T.goal.pos, 0.12);
+    T.controls.target.lerp(T.goal.target, 0.12);
+    if (T.camera.position.distanceTo(T.goal.pos) < 0.02) T.goal = null;
+  }
+  T.controls.update();
+  const t = T.clock.getElapsedTime() - T.animStart;
+  if (T.cur) {
+    const n = T.cur.stitches.length, dt = Math.min(0.12, 3 / n);
+    let last = T.cur.stitches[0];
+    T.cur.stitches.forEach((s, k) => {
+      const f = Math.max(0, Math.min(1, (t - k * dt) / 0.18));
+      const pulse = s.token === state.focus ? 1.45 : 1;
+      s.mesh.scale.set(s.base.x * f * pulse, s.base.y * f * pulse, s.base.z * f * pulse);
+      s.mesh.visible = f > 0;
+      if (f > 0) last = s;
+    });
+    const h = state.pattern.h, bob = Math.sin(t * 8) * h * 0.1;
+    T.hook.position.copy(last.p).addScaledVector(last.nrm, h * 1.1 + bob);
+    T.hook.quaternion.setFromUnitVectors(UP, last.nrm.clone().negate());   // 针尖朝向织物
+  }
+  // 组装步骤：要缝的部件轻轻“呼吸”提示
+  if (T.pulse) for (const g of Object.values(T.parts || {}).flatMap(p => p.insts.map(i => i.group))) {
+    const on = T.pulse.includes(g), sc = on ? 1 + 0.05 * Math.sin(t * 5) : 1;
+    const flat = g.userData.flat ?? (g.userData.flat = g.scale.z / (g.scale.x || 1));
+    g.scale.set(sc, sc, sc * flat);
+  }
+  T.renderer.render(T.scene, T.camera);
+}
+
+// ---------- 针法特写动画 ----------
+// 镜头拉近到一针：上一圈的针目、钩针、钩针上的线圈和线。每种针法拆成几个动作，配一句说明。
+// 坐标：一针宽 1、高 1；上一圈在 y=0，新钩的一圈在 y=1；+z 朝向看的人；往左（-x）钩。
+const CU = { built: false };
+const ease = t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const HOOK_REST = x => [x + 0.5, 1.5, 0.6];         // 钩针停在刚钩好那一针的顶上
+const HOOK_IN = (x, y) => [x - 0.05, y, -0.6];       // 从前往后穿过针眼
+const HOOK_OUT = (x, y) => [x + 0.2, y + 0.45, 0.75]; // 把线圈拉回前面
+
+// 一针短针的分解动作。tx：插进哪一针；nx：新的一针落在哪
+function scPhases(tx, nx, o = {}) {
+  const y = o.y ?? 0.45;
+  const done = { slot: o.slot ?? 0, x: nx, y: o.ny ?? 1, sx: o.sx ?? 1, sy: 1 };
+  return [
+    { cap: `${o.pre || ''}钩针上有 1 个线圈，准备钩下一针`, dur: 1.0, tip: HOOK_REST(o.from ?? tx + 1), loops: 1 },
+    { cap: `插入：钩针从前往后，插进${o.into || '下一针顶部 V 字的两根线下面'}`, dur: 1.6, tip: HOOK_IN(tx, y), loops: 1 },
+    { cap: '挂线：把线从后往前绕在钩针上', dur: 1.2, tip: HOOK_IN(tx, y), loops: 1, yo: true },
+    { cap: '拉出：把挂住的线从针眼里拉出来，钩针上有 2 个线圈', dur: 1.6, tip: HOOK_OUT(tx, y), loops: 2, posts: [[tx, y]] },
+    { cap: '再挂线', dur: 1.2, tip: HOOK_OUT(tx, y), loops: 2, yo: true, posts: [[tx, y]] },
+    { cap: '一次穿过钩针上的 2 个线圈：这一针完成了！', dur: 1.7, tip: HOOK_REST(nx), loops: 1, posts: [[tx, y]], done },
+  ];
+}
+
+const CU_SEQS = {
+  sc: () => ({ title: '短针', sub: 'sc / X', phases: scPhases(0, 0) }),
+  inc: () => ({ title: '加针', sub: '同一个针眼里钩 2 针短针', phases: [
+    ...scPhases(0, 0.3, { sx: 0.72, slot: 0, pre: '第 1 针：' }),
+    ...scPhases(0, -0.3, { sx: 0.72, slot: 1, into: '同一个针眼（和刚才那针一样）' }).slice(1),
+  ] }),
+  dec: () => {
+    const a = [0, 0.45], b = [-1, 0.45];
+    return { title: '减针', sub: '把相邻 2 针并成 1 针', phases: [
+      { cap: '钩针上有 1 个线圈，准备减针', dur: 1.0, tip: HOOK_REST(1), loops: 1 },
+      { cap: '插入第 1 针（隐形减针：只挑靠近你的前半针）', dur: 1.5, tip: HOOK_IN(...a), loops: 1 },
+      { cap: '挂线', dur: 1.1, tip: HOOK_IN(...a), loops: 1, yo: true },
+      { cap: '拉出：钩针上有 2 个线圈', dur: 1.5, tip: HOOK_OUT(...a), loops: 2, posts: [a] },
+      { cap: '先不挂线，直接插入第 2 针', dur: 1.5, tip: HOOK_IN(...b), loops: 2, posts: [a] },
+      { cap: '挂线', dur: 1.1, tip: HOOK_IN(...b), loops: 2, yo: true, posts: [a] },
+      { cap: '拉出：钩针上有 3 个线圈', dur: 1.5, tip: HOOK_OUT(...b), loops: 3, posts: [a, b] },
+      { cap: '再挂线', dur: 1.1, tip: HOOK_OUT(...b), loops: 3, yo: true, posts: [a, b] },
+      { cap: '一次穿过 3 个线圈：2 针变成了 1 针！', dur: 1.8, tip: HOOK_REST(-0.5), loops: 1, posts: [a, b], done: { slot: 0, x: -0.5, y: 1, sx: 1.5, sy: 1 } },
+    ] };
+  },
+  slst: () => ({ title: '引拔针', sub: 'sl st，用来收尾', phases: [
+    ...scPhases(0, 0).slice(0, 3),
+    { cap: '直接一次穿过针眼和钩针上的线圈：几乎没有高度', dur: 1.7, tip: [0.5, 0.95, 0.6], loops: 1, posts: [[0, 0.45]], done: { slot: 0, x: 0, y: 0.62, sx: 1, sy: 0.3 } },
+  ] }),
+  ring: () => ({ title: '在线环里钩短针', sub: '第 1 圈', ring: true,
+    phases: scPhases(0, 0, { y: -0.2, ny: 0.75, into: '线环中间（从环的前面穿到后面）' }) }),
+};
+
+function buildCloseup() {
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a6a, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(3, 6, 8); scene.add(sun);
+  const camera = new THREE.PerspectiveCamera(35, three.camera.aspect, 0.05, 100);
+  const controls = new THREE.OrbitControls(camera, three.renderer.domElement);
+  controls.enableDamping = true; controls.enabled = false;
+  // 针目模型的 -y 指向下一圈，转半圈让 V 字开口朝上
+  const flip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+  const mkStitch = (x, y) => {
+    const m = new THREE.Mesh(three.stitchGeo); m.quaternion.copy(flip);
+    m.position.set(x, y, 0); m.scale.set(1, 1, 0.85); scene.add(m); return m;
+  };
+  const prevRow = [-3, -2, -1, 0, 1, 2, 3].map(x => mkStitch(x, 0));
+  const doneRow = [1, 2, 3].map(x => mkStitch(x, 1));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.09, 10, 48));
+  ring.position.set(0, -0.2, 0); scene.add(ring);
+  // 钩针：针尖在局部原点，针杆沿 +y
+  const dir = new THREE.Vector3(0.55, 0.55, 1).normalize();
+  const metal = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.3 });
+  const grip = new THREE.MeshStandardMaterial({ color: 0x5b7f8f, roughness: 0.6 });
+  const hook = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2, 16), metal); shaft.position.y = 1.2;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), metal); tip.position.y = 0.1;
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.035, 8, 12, Math.PI), metal);
+  lip.position.set(0, 0.2, 0.07); lip.rotation.y = Math.PI / 2;    // 针头的小倒钩
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.17, 1.8, 20), grip); handle.position.y = 3.1;
+  hook.add(shaft, tip, lip, handle);
+  hook.quaternion.setFromUnitVectors(UP, dir);
+  scene.add(hook);
+  const loopGeo = new THREE.TorusGeometry(0.24, 0.055, 8, 24);
+  const facing = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+  const loops = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(loopGeo); m.quaternion.copy(facing); scene.add(m); return m; });
+  const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.055, 8, 16, Math.PI * 1.2));
+  wrap.quaternion.copy(facing); scene.add(wrap);
+  const newStitches = [0, 1].map(() => mkStitch(0, 1));
+  Object.assign(CU, { built: true, scene, camera, controls, dir, prevRow, doneRow, ring, hook, loops, wrap, newStitches,
+    tubes: [], seq: [], si: 0, pi: 0, t: 0, hold: 0, playing: true, stepOnce: false, speed: +$('cuSpeed').value });
+}
+
+function cuResetCamera() {
+  // 让大约 8 针宽的范围放得下；目标点往下放，画面主体落在上半部分，不被下面的控制面板挡住
+  const fit = 4.4 / (Math.tan(CU.camera.fov * Math.PI / 360) * Math.max(0.6, CU.camera.aspect));
+  const d = Math.max(7.5, fit);
+  CU.camera.position.set(-0.17 * d, 0.3 * d - 0.4, d);
+  CU.controls.target.set(0, -0.4, 0);
+  CU.controls.update();
+}
+
+// 当前步骤要演示哪些针法
+function cuSeqForStep() {
+  const s = state.steps[state.step];
+  if (s.type === 'round') {
+    if (s.r.n === 1) return [CU_SEQS.ring()];
+    return ['sc', 'inc', 'dec'].filter(k => s.r.tokens.includes(k)).map(k => CU_SEQS[k]());
+  }
+  if (s.type === 'partEnd' && !s.part.closed) return [CU_SEQS.slst()];
+  return [];
+}
+function cuSyncStep() { cuSetSeq(cuSeqForStep()); }
+function cuSetSeq(list) {
+  if (!CU.built) return;
+  CU.seq = list; CU.si = 0; CU.playing = true; CU.stepOnce = false;
+  cuStartSub();
+}
+function cuStartSub() {
+  const sub = CU.seq[CU.si];
+  CU.pi = 0; CU.t = 0; CU.hold = 0;
+  const ring = !!sub?.ring;
+  CU.prevRow.forEach(m => { m.visible = !ring; });
+  CU.doneRow.forEach(m => { m.visible = !ring; });
+  CU.ring.visible = ring;
+  // 材质跟着当前配色走：织物用主色，正在钩的线用高亮黄
+  const fab = three.mats.color.main.done, work = three.mats.cur;
+  [...CU.prevRow, ...CU.doneRow, CU.ring].forEach(m => { m.material = fab; });
+  [...CU.loops, CU.wrap, ...CU.newStitches].forEach(m => { m.material = work; });
+  cuPanel();
+}
+
+function cuPanel() {
+  const sub = CU.seq[CU.si];
+  if (!sub) {
+    $('cuTitle').textContent = '这一步不用钩针';
+    $('cuSub').textContent = '';
+    $('cuCap').textContent = '切回「整体」可以看整体进度。';
+    $('cuDots').innerHTML = '';
+    return;
+  }
+  $('cuTitle').textContent = sub.title + (CU.seq.length > 1 ? `（${CU.si + 1}/${CU.seq.length}）` : '');
+  $('cuSub').textContent = sub.sub;
+  $('cuCap').textContent = `${CU.pi + 1}. ${sub.phases[CU.pi].cap}`;
+  $('cuDots').innerHTML = sub.phases.map((_, i) => `<i class="${i <= CU.pi ? 'on' : ''}"></i>`).join('');
+  $('cuPlay').textContent = CU.playing && !CU.stepOnce ? '⏸ 暂停' : '▶ 播放';
+}
+
+function cuAdvance() {
+  const sub = CU.seq[CU.si];
+  if (CU.pi < sub.phases.length - 1) { CU.pi++; CU.t = 0; cuPanel(); return; }
+  CU.si = (CU.si + 1) % CU.seq.length;   // 一种针法演示完，接着演示下一种，循环播放
+  cuStartSub();
+}
+
+function cuTick() {
+  const now = performance.now(), dt = Math.min(0.1, (now - (CU.last || now)) / 1000);
+  CU.last = now;
+  CU.controls.update();
+  const sub = CU.seq[CU.si];
+  if (sub && CU.playing) {
+    const ph = sub.phases[CU.pi], last = CU.pi === sub.phases.length - 1;
+    if (CU.t < ph.dur) CU.t = Math.min(ph.dur, CU.t + dt * CU.speed);
+    else if (CU.stepOnce) { CU.playing = false; CU.stepOnce = false; cuPanel(); }
+    else if ((CU.hold += dt * CU.speed) > (last ? 1.6 : 0.35)) { CU.hold = 0; cuAdvance(); }
+  }
+  cuPose();
+}
+
+// 一条线：沿几个点的圆管
+function cuTube(points, r) {
+  const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 24, r, 6, false), three.mats.cur);
+  CU.scene.add(m); CU.tubes.push(m);
+}
+
+function cuPose() {
+  for (const m of CU.tubes) { CU.scene.remove(m); m.geometry.dispose(); }
+  CU.tubes = [];
+  const sub = CU.seq[CU.si];
+  CU.hook.visible = !!sub;
+  CU.loops.forEach(m => { m.visible = false; });
+  CU.wrap.visible = false;
+  CU.newStitches.forEach(m => { m.visible = false; });
+  if (!sub) return;
+
+  const ph = sub.phases[CU.pi], prevPh = sub.phases[CU.pi - 1] || ph;
+  const e = ease(Math.min(1, CU.t / ph.dur));
+  const tip = new THREE.Vector3().fromArray(prevPh.tip).lerp(new THREE.Vector3().fromArray(ph.tip), e);
+  CU.hook.position.copy(tip);
+  const at = off => tip.clone().addScaledVector(CU.dir, off);
+
+  // 钩针上的线圈：k=0 是最早的那个，越新的越靠近针尖
+  const prev = prevPh.loops;
+  let loopAt;
+  if (ph.done) {
+    // 穿过：旧线圈从针尖滑下去消失，留下一个新线圈
+    for (let k = 0; k < prev; k++) {
+      const m = CU.loops[k];
+      m.visible = e < 0.98;
+      m.position.copy(at((0.5 + (prev - 1 - k) * 0.3) * (1 - e) + 0.05 * e));
+      m.scale.setScalar(Math.max(0.01, 1 - e));
+    }
+    const m = CU.loops[prev];
+    m.visible = true; m.position.copy(at(0.5)); m.scale.setScalar(Math.max(0.01, e));
+    loopAt = () => at(0.5);
+  } else {
+    const n = ph.loops, L = prev + (n - prev) * e;
+    loopAt = k => at(0.5 + (L - 1 - k) * 0.3);
+    for (let k = 0; k < n; k++) {
+      const m = CU.loops[k];
+      m.visible = true; m.position.copy(loopAt(k)); m.scale.setScalar(k >= prev ? Math.max(0.01, e) : 1);
+    }
+  }
+
+  // 挂线：线绕在针尖附近
+  if (ph.yo) { CU.wrap.visible = true; CU.wrap.position.copy(at(0.22)); CU.wrap.scale.setScalar(Math.max(0.01, e)); }
+
+  // 从针眼拉出来的线（新一针的“腿”），一针完成时慢慢变成新的针目
+  const fade = ph.done ? 1 - e : 1;
+  (ph.posts || []).forEach(([x, y], j) => {
+    if (fade < 0.03) return;
+    const end = ph.done ? loopAt(0) : loopAt(1 + j);
+    cuTube([new THREE.Vector3(x, y, -0.3), new THREE.Vector3(x + 0.05, y + 0.15, 0.25), end], 0.05 * fade);
+  });
+
+  // 连着线团的线
+  const start = ph.yo ? at(0.22) : (ph.done ? loopAt(0) : loopAt(ph.loops - 1));
+  const s0 = start.clone().add(new THREE.Vector3(0, -0.05, -0.2));
+  cuTube([s0, s0.clone().add(new THREE.Vector3(0.8, 1.0, -1.2)), new THREE.Vector3(2.8, 4.2, -2.2)], 0.05);
+
+  // 已经钩好的新针目（加针有两个位置）
+  sub.phases.forEach((p, i) => {
+    if (!p.done || i > CU.pi) return;
+    const m = CU.newStitches[p.done.slot], g = i === CU.pi ? e : 1;
+    m.visible = g > 0.02;
+    m.position.set(p.done.x, p.done.y, 0);
+    m.scale.set(p.done.sx * g, p.done.sy * g, 0.85 * g);
+  });
+}
+
+function setView(v) {
+  if (!three.renderer) return;
+  if (v === 'closeup' && !CU.built) { buildCloseup(); cuResetCamera(); }
+  state.view = v;
+  document.body.classList.toggle('closeup', v === 'closeup');
+  $('cuPanel').hidden = v !== 'closeup';
+  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  three.controls.enabled = v !== 'closeup';
+  if (CU.built) CU.controls.enabled = v === 'closeup';
+  if (v === 'closeup') cuSyncStep();
+}
+
+$('viewSeg').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); };
+$('cuPlay').onclick = () => {
+  if (CU.stepOnce) CU.stepOnce = false;
+  else CU.playing = !CU.playing;
+  if (CU.playing) CU.last = performance.now();
+  cuPanel();
+};
+$('cuNext').onclick = () => {
+  if (!CU.seq[CU.si]) return;
+  cuAdvance();
+  CU.playing = true; CU.stepOnce = true; CU.last = performance.now(); cuPanel();
+};
+$('cuPrev').onclick = () => {
+  if (!CU.seq[CU.si]) return;
+  CU.pi = Math.max(0, CU.pi - 1); CU.t = 0; CU.hold = 0;
+  CU.playing = true; CU.stepOnce = true; CU.last = performance.now(); cuPanel();
+};
+$('cuSpeed').onchange = e => { CU.speed = +e.target.value; };
+
+// ---------- 事件 ----------
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => loadFile(e.target.files[0]);
+$('drop').ondragover = e => { e.preventDefault(); $('drop').classList.add('over'); };
+$('drop').ondragleave = () => $('drop').classList.remove('over');
+$('drop').ondrop = e => { e.preventDefault(); $('drop').classList.remove('over'); loadFile(e.dataTransfer.files[0]); };
+document.addEventListener('paste', e => {
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) loadFile(item.getAsFile());
+});
+$('demo').onclick = demoImage;
+function setMode(mode, keepSize) {
+  state.mode = mode;
+  document.body.classList.toggle('animal', !!ANIMALS[mode]);
+  document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('diamLabel').textContent = MODES[mode].sizeLabel;
+  if (!keepSize) $('diam').value = MODES[mode].size;
+}
+$('mode').onclick = e => {
+  const b = e.target.closest('button'); if (!b || b.dataset.mode === state.mode) return;
+  setMode(b.dataset.mode);
+  generate(true);
+};
+$('preset').onchange = () => {
+  const p = PRESETS[$('preset').value];
+  if (p) { $('gst').value = p.st; $('grow').value = p.row; }
+  generate(true);
+};
+for (const id of ['diam', 'gst', 'grow']) $(id).onchange = () => {
+  if (id !== 'diam') $('preset').value = 'custom';
+  generate(true);
+};
+$('replay').onclick = () => {
+  if (state.view === 'closeup' && CU.built) { CU.playing = true; CU.stepOnce = false; cuStartSub(); return; }
+  three.animStart = three.clock.getElapsedTime();
+};
+$('resetView').onclick = () => (state.view === 'closeup' && CU.built ? cuResetCamera() : resetView());
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+});
+
+// ---------- 启动 ----------
+(function start() {
+  const saved = loadStore();
+  setMode(MODES[saved.mode] ? saved.mode : 'flat', true);
+  if (saved.colors) Object.assign(state.colors, saved.colors);
+  renderPalettes();
+  for (const id of ['diam', 'preset', 'gst', 'grow']) if (saved[id] != null) $(id).value = saved[id];
+  if (window.THREE) init3D();
+  else $('three').innerHTML = '<p class="muted" style="padding:20px">3D 库加载失败（需要联网），步骤教程仍可使用。</p>';
+  const resumeStep = saved.sig === patternSig() ? saved.step : 0;
+  demoImage(true);
+  // demoImage 异步加载后会生成图解；之后恢复上次进度
+  const wait = setInterval(() => {
+    if (!state.pattern) return;
+    clearInterval(wait);
+    if (resumeStep > 0) { state.step = Math.min(resumeStep, state.steps.length - 1); showStep(); }
+  }, 30);
+})();
+</script>
+</body>
+</html>
